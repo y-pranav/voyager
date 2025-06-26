@@ -8,6 +8,7 @@ import { Plane, MapPin, Sparkles } from 'lucide-react'
 
 export interface TripRequest {
   destination: string
+  source: string
   budget: number
   duration_days: number
   start_date?: string

@@ -5,6 +5,7 @@ import { Calendar, Users, MapPin, DollarSign, Heart, Plane } from 'lucide-react'
 
 interface TripRequest {
   destination: string
+  source: string
   budget: number
   duration_days: number
   start_date?: string
@@ -50,6 +51,7 @@ const TRANSPORT_MODES = [
 export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
   const [formData, setFormData] = useState<TripRequest>({
     destination: '',
+    source: '',
     budget: 50000,
     duration_days: 5,
     start_date: '',
@@ -76,6 +78,11 @@ export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
     
     if (!formData.destination.trim()) {
       alert('Please enter a destination')
+      return
+    }
+
+    if (!formData.source.trim()) {
+      alert('Please enter your departure city/airport')
       return
     }
 
@@ -106,6 +113,20 @@ export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="form-label">
+                Where are you traveling from? *
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g., Delhi, BLR, HYD, Mumbai"
+                value={formData.source}
+                onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
+                required
+              />
+            </div>
+
             <div>
               <label className="form-label">
                 Where do you want to go? *

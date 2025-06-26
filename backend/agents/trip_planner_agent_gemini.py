@@ -24,11 +24,12 @@ class TripPlannerAgent:
     1. Goal interpretation
     2. Task breakdown
     3. Tool execution
-    4. Itinerary generation    """
+    4. Itinerary generation
+    """
     
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-pro",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
@@ -227,41 +228,43 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
         
         # Execute each tool with appropriate parameters
         try:
-            print(f"🔧 Executing tool calls for {request.destination}")
-            
             # Flight search
             flight_tool = self.tools["flight_search"]
-            print(f"🛫 Calling flight search tool...")
-            print(f"🌍 Using source: {request.source}, destination: {request.destination}")
+            print(f"🛫 CALLING FLIGHT SEARCH TOOL...")
             flight_result = flight_tool._run(
-                origin=request.source,  # Use the source location from the request
+                origin="India",  # This would be determined from user location
                 destination=request.destination,
-                departure_date=request.start_date or "2025-06-28",
+                departure_date=request.start_date or "2024-01-15",
                 passengers=request.travelers,
                 budget_max=request.budget
             )
+            print(f"📨 RECEIVED FROM FLIGHT TOOL:")
+            print(f"   - Type: {type(flight_result)}")
+            print(f"   - Keys: {list(flight_result.keys()) if isinstance(flight_result, dict) else 'Not a dict'}")
             
-            print(f"📊 Flight tool returned: {type(flight_result)}")
-            print(f"🔍 Flight result keys: {list(flight_result.keys()) if isinstance(flight_result, dict) else 'Not a dict'}")
+            if isinstance(flight_result, dict):
+                if 'flights' in flight_result:
+                    print(f"   - flights count: {len(flight_result['flights'])}")
+                    if flight_result['flights']:
+                        print(f"   - First flight sample: {flight_result['flights'][0] if flight_result['flights'] else 'None'}")
+                else:
+                    print(f"   - ❌ No 'flights' key in result!")
             
-            if isinstance(flight_result, dict) and 'flights' in flight_result:
-                print(f"✈️ Found {len(flight_result['flights'])} structured flights")
-                # Store properly structured flight data for frontend
-                tool_results["flights"] = {
-                    "formatted": flight_result.get("formatted", ""),
-                    "options": flight_result["flights"]  # This is what frontend expects
-                }
-                print(f"🎯 Stored flights in tool_results with {len(flight_result['flights'])} options")
-            else:
-                print(f"❌ Unexpected flight result format: {flight_result}")
-                tool_results["flights"] = {"formatted": str(flight_result), "options": []}
+            # Store both formatted string and structured data
+            tool_results["flights"] = {
+                "formatted": flight_result["formatted"],
+                "options": flight_result["flights"]  # Store as "options" to match frontend interface
+            }
+            print(f"🗂️ STORED IN TOOL_RESULTS['flights']:")
+            print(f"   - formatted: {len(flight_result.get('formatted', '')) if flight_result.get('formatted') else 0} chars")
+            print(f"   - options: {len(flight_result.get('flights', [])) if flight_result.get('flights') else 0} items")
             
             # Hotel search
             hotel_tool = self.tools["hotel_search"]
             hotel_result = hotel_tool._run(
                 location=request.destination,
-                check_in_date=request.start_date or "2025-06-28",
-                check_out_date="2025-07-03",  # Calculate based on duration
+                check_in_date=request.start_date or "2024-01-15",
+                check_out_date="2024-01-20",  # Calculate based on duration
                 guests=request.travelers,
                 hotel_type=request.accommodation_type
             )
@@ -300,33 +303,9 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
     def _structure_itinerary(self, agent_result: Dict[str, Any], request: TripRequest) -> Dict[str, Any]:
         """Structure the agent result into a proper itinerary format"""
         try:
-            print(f"🏗️ Structuring itinerary for {request.destination}")
-            
             # Extract the final itinerary from agent result
             final_response = agent_result.get("final_itinerary", "")
             tool_results = agent_result.get("tool_results", {})
-            
-            print(f"📋 Tool results keys: {list(tool_results.keys())}")
-            
-            # Get flight data from tool results
-            flight_data = tool_results.get("flights", {})
-            print(f"✈️ Flight data type: {type(flight_data)}")
-            print(f"🔍 Flight data keys: {list(flight_data.keys()) if isinstance(flight_data, dict) else 'Not a dict'}")
-            
-            if isinstance(flight_data, dict) and "options" in flight_data:
-                flight_structured = flight_data  # Already in correct format
-                print(f"✅ Using structured flight data with {len(flight_data['options'])} options")
-            else:
-                # Fallback - try to extract from old format
-                print(f"🔄 Converting flight data format...")
-                if isinstance(flight_data, dict) and 'flights' in flight_data:
-                    flight_structured = {
-                        "formatted": flight_data.get("formatted", ""),
-                        "options": flight_data.get("flights", [])
-                    }
-                else:
-                    flight_structured = {"formatted": str(flight_data), "options": []}
-                print(f"🔧 Converted to {len(flight_structured['options'])} options")
             
             # Try to parse JSON from the response
             try:
@@ -341,6 +320,28 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 # If JSON parsing fails, create structure from text
                 structured_data = self._create_fallback_structure(final_response, request)
             
+            # Get flight data from tool results
+            flight_data = tool_results.get("flights", {})
+            print(f"🏗️ STRUCTURING ITINERARY - Flight data:")
+            print(f"   - flight_data type: {type(flight_data)}")
+            print(f"   - flight_data keys: {list(flight_data.keys()) if isinstance(flight_data, dict) else 'Not a dict'}")
+            
+            if isinstance(flight_data, dict):
+                options = flight_data.get("options", [])
+                print(f"   - options count: {len(options)}")
+                if options:
+                    print(f"   - First option sample: {options[0] if options else 'None'}")
+                else:
+                    print(f"   - ❌ No options in flight_data!")
+            
+            flight_structured = {
+                "formatted": flight_data.get("formatted", ""),
+                "options": flight_data.get("options", [])  # Include structured flight options
+            }
+            print(f"📦 FINAL flight_structured:")
+            print(f"   - formatted: {len(flight_structured['formatted'])} chars")
+            print(f"   - options: {len(flight_structured['options'])} items")
+            
             # Ensure required fields are present
             itinerary = {
                 "destination": request.destination,
@@ -348,20 +349,24 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 "total_cost": structured_data.get("total_cost", request.budget * 0.8),
                 "currency": "INR",
                 "daily_itinerary": structured_data.get("daily_itinerary", []),
-                "flights": flight_structured,  # Use properly structured flight data
+                "flights": flight_structured,  # Use structured flight data
                 "accommodation_summary": structured_data.get("accommodation_summary", {}),
                 "cost_breakdown": structured_data.get("cost_breakdown", {}),
                 "recommendations": structured_data.get("recommendations", []),
-                "tool_results": {k: v for k, v in tool_results.items() if k != "flights"}  # Avoid duplicates
+                "tool_results": {
+                    k: v for k, v in tool_results.items() if k != "flights"  # Avoid duplicate flight data
+                }
             }
             
-            print(f"🎯 Final itinerary flights: {len(itinerary['flights'].get('options', []))} options")
-            print(f"📤 Sending to frontend - flights type: {type(itinerary['flights'])}")
-            
-            # Log final flight data being sent to frontend
-            if itinerary['flights'].get('options'):
-                for i, flight in enumerate(itinerary['flights']['options'][:3]):
-                    print(f"📤 Frontend Flight {i+1}: {flight.get('airlines', [])} - ₹{flight.get('price_inr', 0):,.0f}")
+            print(f"🚀 FINAL ITINERARY BEING SENT TO FRONTEND:")
+            print(f"   - destination: {itinerary['destination']}")
+            print(f"   - flights type: {type(itinerary['flights'])}")
+            print(f"   - flights keys: {list(itinerary['flights'].keys()) if isinstance(itinerary['flights'], dict) else 'Not a dict'}")
+            if isinstance(itinerary['flights'], dict) and 'options' in itinerary['flights']:
+                print(f"   - flights.options count: {len(itinerary['flights']['options'])}")
+                if itinerary['flights']['options']:
+                    for i, opt in enumerate(itinerary['flights']['options'][:2]):
+                        print(f"     Option {i+1}: {opt.get('airlines', [])} - ₹{opt.get('price_inr', 0):,.0f}")
             
             return itinerary
             

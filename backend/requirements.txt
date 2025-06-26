@@ -11,3 +11,4 @@ httpx==0.25.2
 python-multipart==0.0.6
 typing-extensions==4.8.0
 google-generativeai==0.3.2
+amadeus==8.0.0

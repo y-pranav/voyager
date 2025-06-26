@@ -5,6 +5,7 @@ from datetime import datetime, date
 class TripRequest(BaseModel):
     """Trip planning request model"""
     destination: str = Field(..., description="Primary destination for the trip")
+    source: str = Field(..., description="Source location (departure city/airport) for the trip")
     budget: float = Field(..., description="Budget in INR")
     duration_days: int = Field(..., description="Number of days for the trip")
     start_date: Optional[date] = Field(None, description="Preferred start date")
