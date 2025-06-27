@@ -389,7 +389,7 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-xs text-yellow-800 font-medium">⚠️ Pricing Disclaimer</p>
                   <p className="text-xs text-yellow-700 mt-1">
-                    Prices shown are from Amadeus API and may differ from actual booking sites. 
+                    Prices shown are from Google Flights via SerpAPI and may differ from actual booking sites. 
                     Flight details (routes, times) are accurate. Always verify final price when booking.
                   </p>
                 </div>
@@ -397,7 +397,7 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
             ) : (
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-gray-600">Real flight options will be displayed here</p>
-                <p className="text-xs text-gray-500 mt-1">Powered by Amadeus API</p>
+                <p className="text-xs text-gray-500 mt-1">Powered by Google Flights via SerpAPI</p>
               </div>
             )}
           </div>
