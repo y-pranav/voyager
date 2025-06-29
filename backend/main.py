@@ -78,7 +78,20 @@ async def plan_trip(request: TripRequest) -> TripResponse:
             session_id=session_id,
             request=request
         )
-          # Store the result and mark as completed
+        
+        # Ensure JSON serialization by sanitizing the itinerary
+        import json
+        try:
+            # Test if itinerary is JSON serializable
+            json.dumps(itinerary)
+        except TypeError as e:
+            logger.error(f"JSON serialization error in itinerary: {str(e)}")
+            # Create a sanitized copy
+            sanitized = sanitize_for_json(itinerary)
+            logger.info(f"Itinerary sanitized for JSON serialization")
+            itinerary = sanitized
+        
+        # Store the result and mark as completed
         await db.update_trip_session(session_id, {
             "itinerary": itinerary,
             "status": "completed"
@@ -157,6 +170,25 @@ async def get_available_tools():
             "currency_converter"
         ]
     }
+
+def sanitize_for_json(obj):
+    """
+    Recursively sanitize an object to ensure it's JSON serializable.
+    Converts datetime objects to strings and handles other non-serializable types.
+    """
+    from datetime import date, datetime
+    
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif isinstance(obj, (int, float, bool, str, type(None))):
+        return obj
+    else:
+        # For any other types, convert to string
+        return str(obj)
 
 if __name__ == "__main__":
     import uvicorn

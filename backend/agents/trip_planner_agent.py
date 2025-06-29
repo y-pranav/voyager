@@ -274,10 +274,46 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             
             # Hotel search
             hotel_tool = self.tools["hotel_search"]
+            
+            # Calculate proper check-in and check-out dates
+            from datetime import datetime, timedelta, date
+            
+            # Handle the start date properly regardless of type (string or date)
+            if isinstance(request.start_date, date):
+                # It's already a date object
+                start_date = request.start_date
+                start_date_str = start_date.strftime("%Y-%m-%d")
+            elif isinstance(request.start_date, str) and request.start_date:
+                # It's a string, parse it
+                try:
+                    start_date = datetime.strptime(request.start_date, "%Y-%m-%d").date()
+                    start_date_str = request.start_date
+                except:
+                    # Invalid string format, use default
+                    start_date = datetime.now().date()
+                    start_date_str = start_date.strftime("%Y-%m-%d")
+            else:
+                # No start date provided or invalid type, use default
+                start_date = datetime.now().date()
+                start_date_str = start_date.strftime("%Y-%m-%d")
+                
+            # Calculate checkout date
+            try:
+                # Calculate check-out date based on duration
+                end_date = start_date + timedelta(days=request.duration_days)
+                # Format to string
+                check_out_date_str = end_date.strftime("%Y-%m-%d")
+                print(f"✅ Calculated dates: {start_date_str} to {check_out_date_str}")
+            except Exception as e:
+                print(f"⚠️ Error calculating checkout date: {str(e)}")
+                # Fallback to default dates if there's an issue
+                end_date = start_date + timedelta(days=3)
+                check_out_date_str = end_date.strftime("%Y-%m-%d")
+            
             hotel_result = hotel_tool._run(
                 location=request.destination,
-                check_in_date=request.start_date or "2025-06-28",
-                check_out_date="2025-07-03",  # Calculate based on duration
+                check_in_date=start_date_str,
+                check_out_date=check_out_date_str,
                 guests=request.travelers,
                 hotel_type=request.accommodation_type
             )

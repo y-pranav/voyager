@@ -40,6 +40,36 @@ interface FlightData {
   disclaimer: string
 }
 
+// Hotel-related interfaces
+interface HotelOption {
+  id: string
+  name: string
+  rating: number
+  star_level: number
+  price_per_night: number
+  currency: string
+  total_price: number
+  amenities: string[]
+  room_type: string
+  location: string
+  address: string
+  distance_to_center: number
+  breakfast_included: boolean
+  refundable: boolean
+  cancellation_policy: string
+  images: string[]
+  availability: string
+  reviews_count: number
+  property_type: string
+  [key: string]: any  // Allow other properties
+}
+
+interface HotelData {
+  options: HotelOption[]
+  status: string
+  disclaimer: string
+}
+
 interface TripItinerary {
   destination: string
   total_days: number
@@ -47,6 +77,7 @@ interface TripItinerary {
   currency: string
   daily_itinerary: DayItinerary[]
   flights: FlightData
+  hotels?: HotelData
   accommodation_summary: any
   cost_breakdown: any
   recommendations: string[]
@@ -117,8 +148,134 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
       return '₹0';
     }
     // Round to whole number to avoid decimal issues
-    return `₹${Math.round(amount).toLocaleString()}`;
+    return `₹${Math.round(numAmount).toLocaleString()}`;
   }
+
+  // Hotel display component
+  const HotelDisplay = ({ hotels }: { hotels: HotelData }) => {
+    const [showAll, setShowAll] = useState(false);
+    
+    // Safety check for missing data
+    if (!hotels || !hotels.options || hotels.options.length === 0) {
+      return <p className="text-gray-600">No hotel options available.</p>;
+    }
+    
+    // Show only the first 3 hotels initially, or all if showAll is true
+    const displayedHotels = showAll ? hotels.options : hotels.options.slice(0, 3);
+    
+    return (
+      <div>
+        {/* Sample Data Disclaimer */}
+        <div className="bg-blue-50 border border-blue-100 p-2 rounded-md mb-4 text-xs text-blue-600">
+          <p className="font-medium">Sample Hotel Data</p>
+          <p>Showing {hotels.options.length} hotel options for demonstration purposes.</p>
+        </div>
+        
+        {/* Hotel List */}
+        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 relative">
+          {/* Scroll Indicator */}
+          {hotels.options.length > 3 && (
+            <div className="absolute right-0 top-1/2 h-24 w-1 bg-gradient-to-b from-primary-200 to-transparent rounded-full"></div>
+          )}
+          
+          {displayedHotels.map((hotel) => (
+            <div 
+              key={hotel.id} 
+              className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">
+                      {hotel.name}
+                    </h4>
+                    <div className="flex items-center mt-1 mb-2">
+                      <div className="flex text-yellow-400 mr-1">
+                        {[...Array(hotel.star_level || 0)].map((_, i) => (
+                          <Star key={i} className="h-4 w-4 fill-current" />
+                        ))}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {hotel.rating.toFixed(1)} ({hotel.reviews_count} reviews)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-primary-600 font-medium">
+                      {formatCurrency(hotel.price_per_night)}/night
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {formatCurrency(hotel.total_price)} total
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {hotel.amenities?.slice(0, 5).map((amenity, index) => (
+                    <span 
+                      key={index}
+                      className="inline-flex items-center bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full"
+                    >
+                      {amenity}
+                    </span>
+                  ))}
+                  {hotel.amenities?.length > 5 && (
+                    <span className="inline-flex items-center bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                      +{hotel.amenities.length - 5} more
+                    </span>
+                  )}
+                </div>
+                
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                  <div className="flex items-center">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    <span>{hotel.location}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span>
+                      {hotel.distance_to_center.toFixed(1)} km from center
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <span>
+                      Room: {hotel.room_type}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    {hotel.breakfast_included ? (
+                      <span className="text-green-600">Breakfast included</span>
+                    ) : (
+                      <span>No breakfast</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-3 text-xs">
+                  <span className={`
+                    ${hotel.refundable ? 'text-green-600' : 'text-orange-500'} font-medium
+                  `}>
+                    {hotel.cancellation_policy}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Show More Button */}
+        {hotels.options.length > 3 && (
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="text-primary-600 font-medium text-sm hover:text-primary-700 focus:outline-none"
+            >
+              {showAll ? 'Show fewer options' : `Show all ${hotels.options.length} options`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -460,7 +617,11 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
               <Hotel className="h-5 w-5 mr-2 text-primary-600" />
               Accommodation
             </h3>
-            {itinerary.accommodation_summary ? (
+            {itinerary.hotels && itinerary.hotels.options && itinerary.hotels.options.length > 0 ? (
+              <div className="space-y-3">
+                <HotelDisplay hotels={itinerary.hotels} />
+              </div>
+            ) : itinerary.accommodation_summary ? (
               <div className="space-y-3">
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-medium">

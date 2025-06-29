@@ -14,6 +14,7 @@ class FlightSearchInput(BaseModel):
     return_date: Optional[str] = Field(None, description="Return date for round trip")
     passengers: int = Field(1, description="Number of passengers")
     budget_max: Optional[float] = Field(None, description="Maximum budget in INR")
+    use_real_api: bool = Field(False, description="Whether to use real API calls instead of sample data")
 
 class FlightSearchTool:
     """Tool for searching flight options using SerpAPI (Google Flights)"""
@@ -493,21 +494,44 @@ class FlightSearchTool:
         return_date: Optional[str] = None,
         passengers: int = 1,
         budget_max: Optional[float] = None,
+        use_real_api: bool = False,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Execute the flight search and return both formatted string and structured data"""
         
         print(f"🚀 Starting flight search: {origin} → {destination} on {departure_date}")
         print(f"📊 Search params - Passengers: {passengers}, Budget: {budget_max}")
+        print(f"🔄 API Mode: {'Real API' if use_real_api else 'Sample Data'}")
         
-        # COMMENTED OUT: API calls to SerpAPI as requested
-        # We'll use sample data instead of making real API calls
-        print(f"ℹ️ Using sample flight data only (no API calls)")
+        structured_flights = []
+        api_used = "sample"
         
         try:
-            # Always use sample data - no API calls to SerpAPI/Amadeus
-            print("⚠️ Using enhanced sample flight data")
-            structured_flights = self._get_fallback_results_structured(origin, destination, passengers)
+            if use_real_api and self.serpapi_key:
+                print("🌐 Using real SerpAPI for flight search")
+                # Use real API call
+                serpapi_results = self._search_serpapi_flights(
+                    origin=origin,
+                    destination=destination,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    passengers=passengers
+                )
+                
+                if serpapi_results:
+                    print(f"✅ SerpAPI returned {len(serpapi_results)} flights")
+                    structured_flights = self._format_flight_results_structured(serpapi_results, budget_max)
+                    api_used = "serpapi"
+                else:
+                    print("⚠️ SerpAPI returned no results, falling back to sample data")
+                    structured_flights = self._get_fallback_results_structured(origin, destination, passengers)
+                    api_used = "serpapi_fallback"
+            else:
+                # Use sample data - no API calls
+                print("⚠️ Using enhanced sample flight data")
+                structured_flights = self._get_fallback_results_structured(origin, destination, passengers)
+                api_used = "sample"
+            
             # Generate formatted text results for LLM
             formatted_text = self._format_flight_results_text(structured_flights)
             
@@ -542,7 +566,7 @@ class FlightSearchTool:
                     'budget_max': budget_max
                 },
                 'total_options': len(structured_flights),
-                'api_used': 'sample'
+                'api_used': api_used
             }
             
             print(f"✅ FlightSearchTool returning {len(structured_flights)} flights to TripPlannerAgent")
