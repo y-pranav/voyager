@@ -422,6 +422,13 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 # If JSON parsing fails, create structure from text
                 structured_data = self._create_fallback_structure(final_response, request)
             
+            # Extract hotel data if available
+            hotel_structured = None
+            if "hotels" in tool_results and isinstance(tool_results["hotels"], dict) and "hotels" in tool_results["hotels"]:
+                # The hotel data is structured correctly
+                hotel_structured = tool_results["hotels"]["hotels"]
+                print(f"✅ Using structured hotel data with {len(hotel_structured.get('options', []))} options")
+            
             # Ensure required fields are present
             itinerary = {
                 "destination": request.destination,
@@ -430,10 +437,11 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 "currency": "INR",
                 "daily_itinerary": structured_data.get("daily_itinerary", []),
                 "flights": flight_structured,  # Use properly structured flight data
+                "hotels": hotel_structured,    # Add structured hotel data
                 "accommodation_summary": structured_data.get("accommodation_summary", {}),
                 "cost_breakdown": structured_data.get("cost_breakdown", {}),
                 "recommendations": structured_data.get("recommendations", []),
-                "tool_results": {k: v for k, v in tool_results.items() if k != "flights"}  # Avoid duplicates
+                "tool_results": {k: v for k, v in tool_results.items() if k not in ["flights", "hotels"]}  # Avoid duplicates
             }
             
             print(f"🎯 Final itinerary flights: {len(itinerary['flights'].get('options', []))} options")
@@ -443,6 +451,12 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             if itinerary['flights'].get('options'):
                 for i, flight in enumerate(itinerary['flights']['options'][:3]):
                     print(f"📤 Frontend Flight {i+1}: {flight.get('airlines', [])} - ₹{flight.get('price_inr', 0):,.0f}")
+                    
+            # Log hotel data
+            if itinerary.get('hotels') and itinerary['hotels'].get('options'):
+                print(f"🏨 Final itinerary hotels: {len(itinerary['hotels'].get('options', []))} options")
+                for i, hotel in enumerate(itinerary['hotels']['options'][:3]):
+                    print(f"🏨 Frontend Hotel {i+1}: {hotel.get('name', '')} - ₹{hotel.get('price_per_night', 0):,.0f}/night")
             
             # Add debug info for frontend
             print("\n🔍 FINAL ITINERARY STRUCTURE:")

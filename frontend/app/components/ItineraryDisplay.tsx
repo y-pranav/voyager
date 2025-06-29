@@ -166,51 +166,67 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
     return (
       <div>
         {/* Sample Data Disclaimer */}
-        <div className="bg-blue-50 border border-blue-100 p-2 rounded-md mb-4 text-xs text-blue-600">
-          <p className="font-medium">Sample Hotel Data</p>
-          <p>Showing {hotels.options.length} hotel options for demonstration purposes.</p>
+        <div className="bg-yellow-50 border border-yellow-200 p-2 rounded-lg mb-4 text-xs">
+          <div className="flex items-center">
+            <div className="mr-2 text-yellow-600">⚠️</div>
+            <div>
+              <p className="text-yellow-800 font-medium">
+                Sample data for demonstration purposes only
+              </p>
+              <p className="text-yellow-700">Showing {hotels.options.length} hotel options</p>
+            </div>
+          </div>
         </div>
         
         {/* Hotel List */}
-        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 relative">
-          {/* Scroll Indicator */}
-          {hotels.options.length > 3 && (
-            <div className="absolute right-0 top-1/2 h-24 w-1 bg-gradient-to-b from-primary-200 to-transparent rounded-full"></div>
-          )}
-          
-          {displayedHotels.map((hotel) => (
+        <div 
+          className="space-y-4 max-h-[500px] overflow-y-auto pr-2"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#CBD5E0 transparent',
+          }}
+        >          
+          {displayedHotels.map((hotel, idx) => (
             <div 
               key={hotel.id} 
-              className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
             >
-              <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="flex items-center">
+                    <h4 className="font-semibold text-gray-900 mr-2">
                       {hotel.name}
                     </h4>
-                    <div className="flex items-center mt-1 mb-2">
-                      <div className="flex text-yellow-400 mr-1">
-                        {[...Array(hotel.star_level || 0)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-current" />
-                        ))}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">
-                        {hotel.rating.toFixed(1)} ({hotel.reviews_count} reviews)
+                    {idx === 0 && (
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                        Best Value
                       </span>
-                    </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-primary-600 font-medium">
-                      {formatCurrency(hotel.price_per_night)}/night
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {formatCurrency(hotel.total_price)} total
-                    </p>
+                  <div className="flex items-center mt-1">
+                    <div className="flex text-yellow-400 mr-1">
+                      {[...Array(hotel.star_level || 0)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-current" />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-700">
+                      {hotel.rating?.toFixed(1) || "N/A"} ({hotel.reviews_count || 0} reviews)
+                    </span>
                   </div>
                 </div>
-                
-                <div className="mt-3 flex flex-wrap gap-1">
+                <div className="text-right">
+                  <p className="font-medium text-green-600 text-lg">
+                    {formatCurrency(hotel.price_per_night)}/night
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {formatCurrency(hotel.total_price)} total
+                  </p>
+                </div>
+              </div>
+              
+              {/* Property details */}
+              <div className="border-t border-gray-100 pt-3 mt-2">
+                <div className="flex flex-wrap gap-1 mb-3">
                   {hotel.amenities?.slice(0, 5).map((amenity, index) => (
                     <span 
                       key={index}
@@ -226,35 +242,38 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
                   )}
                 </div>
                 
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                   <div className="flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span>{hotel.location}</span>
+                    <MapPin className="h-3 w-3 mr-1 text-gray-500" />
+                    <span>{hotel.location || "Location N/A"}</span>
                   </div>
                   <div className="flex items-center">
                     <span>
-                      {hotel.distance_to_center.toFixed(1)} km from center
+                      {typeof hotel.distance_to_center === 'number' ? 
+                        `${hotel.distance_to_center.toFixed(1)} km from center` : 
+                        "Distance not available"
+                      }
                     </span>
                   </div>
                   <div className="flex items-center">
                     <span>
-                      Room: {hotel.room_type}
+                      Room: {hotel.room_type || "Standard"}
                     </span>
                   </div>
                   <div className="flex items-center">
                     {hotel.breakfast_included ? (
-                      <span className="text-green-600">Breakfast included</span>
+                      <span className="text-green-600">✓ Breakfast included</span>
                     ) : (
-                      <span>No breakfast</span>
+                      <span className="text-gray-500">✗ No breakfast</span>
                     )}
                   </div>
                 </div>
                 
-                <div className="mt-3 text-xs">
+                <div className="mt-3 pt-2 border-t border-gray-100 text-xs">
                   <span className={`
                     ${hotel.refundable ? 'text-green-600' : 'text-orange-500'} font-medium
                   `}>
-                    {hotel.cancellation_policy}
+                    {hotel.cancellation_policy || (hotel.refundable ? "Free cancellation" : "Non-refundable")}
                   </span>
                 </div>
               </div>
@@ -615,10 +634,33 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Hotel className="h-5 w-5 mr-2 text-primary-600" />
-              Accommodation
+              Hotel Options
             </h3>
             {itinerary.hotels && itinerary.hotels.options && itinerary.hotels.options.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Hotel summary header */}
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Found {itinerary.hotels.options.length} hotel options
+                    </p>
+                    <p className="text-xs text-gray-500">Scroll to view all options</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 focus:outline-none">
+                      <span className="font-medium">Sort:</span> Best Value
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Scroll indicator */}
+                <div className="flex items-center justify-center mb-2 text-xs text-gray-400">
+                  <ChevronDown className="h-3 w-3 animate-bounce" />
+                  <span className="mx-1">Scroll to see more</span>
+                  <ChevronDown className="h-3 w-3 animate-bounce" />
+                </div>
+                
+                {/* Hotel display component */}
                 <HotelDisplay hotels={itinerary.hotels} />
               </div>
             ) : itinerary.accommodation_summary ? (
