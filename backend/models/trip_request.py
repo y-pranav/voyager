@@ -14,6 +14,7 @@ class TripRequest(BaseModel):
     accommodation_type: Optional[str] = Field("hotel", description="Preferred accommodation type")
     transport_mode: Optional[str] = Field("flight", description="Preferred transport mode")
     special_requirements: Optional[str] = Field(None, description="Any special requirements or notes")
+    use_real_api: bool = Field(False, description="Whether to use real API for flight and hotel searches")
 
     @field_serializer('start_date')
     def serialize_start_date(self, start_date: Optional[date]) -> Optional[str]:

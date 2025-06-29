@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Users, MapPin, DollarSign, Heart, Plane } from 'lucide-react'
+import { Calendar, Users, MapPin, DollarSign, Heart, Plane, Sparkles } from 'lucide-react'
 
 interface TripRequest {
   destination: string
@@ -14,6 +14,7 @@ interface TripRequest {
   accommodation_type: string
   transport_mode: string
   special_requirements?: string
+  use_real_api: boolean
 }
 
 interface TripRequestFormProps {
@@ -59,7 +60,8 @@ export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
     interests: [],
     accommodation_type: 'hotel',
     transport_mode: 'flight',
-    special_requirements: ''
+    special_requirements: '',
+    use_real_api: true
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -315,6 +317,31 @@ export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
               onChange={(e) => setFormData(prev => ({ ...prev, special_requirements: e.target.value }))}
             />
           </div>
+        </div>
+
+        {/* API Options */}
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+            <Sparkles className="h-5 w-5 text-primary-600 mr-2" />
+            Advanced Options
+          </h3>
+          
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="use_real_api"
+              className="h-5 w-5 text-primary-600 border-gray-300 rounded"
+              checked={formData.use_real_api}
+              onChange={(e) => setFormData(prev => ({ ...prev, use_real_api: e.target.checked }))}
+            />
+            <label htmlFor="use_real_api" className="font-medium text-gray-700 cursor-pointer">
+              Use real API data for flights and hotels
+            </label>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            When checked, the system will use real-time data from SerpAPI for flights and hotels. 
+            Unchecking will use sample data which is faster but less accurate.
+          </p>
         </div>
 
         {/* Submit Button */}

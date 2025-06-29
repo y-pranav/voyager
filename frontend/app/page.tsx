@@ -17,6 +17,7 @@ export interface TripRequest {
   accommodation_type: string
   transport_mode: string
   special_requirements?: string
+  use_real_api: boolean
 }
 
 export interface TripItinerary {

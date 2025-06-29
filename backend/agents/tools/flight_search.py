@@ -14,7 +14,7 @@ class FlightSearchInput(BaseModel):
     return_date: Optional[str] = Field(None, description="Return date for round trip")
     passengers: int = Field(1, description="Number of passengers")
     budget_max: Optional[float] = Field(None, description="Maximum budget in INR")
-    use_real_api: bool = Field(False, description="Whether to use real API calls instead of sample data")
+    use_real_api: bool = Field(True, description="Whether to use real API calls instead of sample data")
 
 class FlightSearchTool:
     """Tool for searching flight options using SerpAPI (Google Flights)"""
@@ -494,7 +494,7 @@ class FlightSearchTool:
         return_date: Optional[str] = None,
         passengers: int = 1,
         budget_max: Optional[float] = None,
-        use_real_api: bool = False,
+        use_real_api: bool = True,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Execute the flight search and return both formatted string and structured data"""

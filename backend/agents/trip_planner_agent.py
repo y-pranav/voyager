@@ -228,6 +228,7 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
         # Execute each tool with appropriate parameters
         try:
             print(f"🔧 Executing tool calls for {request.destination}")
+            print(f"🛠️ use_real_api setting: {request.use_real_api}")
             
             # Flight search
             flight_tool = self.tools["flight_search"]
@@ -238,7 +239,8 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 destination=request.destination,
                 departure_date=request.start_date or "2025-06-28",
                 passengers=request.travelers,
-                budget_max=request.budget
+                budget_max=request.budget,
+                use_real_api=request.use_real_api
             )
             
             print(f"📊 Flight tool returned: {type(flight_result)}")
@@ -315,7 +317,8 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 check_in_date=start_date_str,
                 check_out_date=check_out_date_str,
                 guests=request.travelers,
-                hotel_type=request.accommodation_type
+                hotel_type=request.accommodation_type,
+                use_real_api=request.use_real_api
             )
             tool_results["hotels"] = hotel_result
             
