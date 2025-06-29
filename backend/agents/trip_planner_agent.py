@@ -427,10 +427,49 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             
             # Extract hotel data if available
             hotel_structured = None
-            if "hotels" in tool_results and isinstance(tool_results["hotels"], dict) and "hotels" in tool_results["hotels"]:
-                # The hotel data is structured correctly
-                hotel_structured = tool_results["hotels"]["hotels"]
-                print(f"✅ Using structured hotel data with {len(hotel_structured.get('options', []))} options")
+            if "hotels" in tool_results:
+                print(f"🔍 DEBUG hotel_result structure: {list(tool_results['hotels'].keys())}")
+                
+                if isinstance(tool_results["hotels"], dict) and "hotels" in tool_results["hotels"]:
+                    # The hotel data is structured correctly with nested "hotels" key
+                    hotel_structured = tool_results["hotels"]["hotels"]
+                    print(f"✅ Using structured hotel data with {len(hotel_structured.get('options', []))} options")
+                elif isinstance(tool_results["hotels"], dict):
+                    # Direct structure without nested "hotels" key - create proper structure
+                    if "options" in tool_results["hotels"]:
+                        # Already has options directly
+                        hotel_structured = {
+                            "options": tool_results["hotels"]["options"],
+                            "status": tool_results["hotels"].get("status", "sample_data"),
+                            "disclaimer": tool_results["hotels"].get("disclaimer", "Hotel options for your stay")
+                        }
+                    else:
+                        # Try to extract options from potential nested structure
+                        options = []
+                        if "hotels" in tool_results["hotels"]:
+                            if isinstance(tool_results["hotels"]["hotels"], dict) and "options" in tool_results["hotels"]["hotels"]:
+                                options = tool_results["hotels"]["hotels"]["options"]
+                            elif isinstance(tool_results["hotels"]["hotels"], list):
+                                options = tool_results["hotels"]["hotels"]
+                        
+                        hotel_structured = {
+                            "options": options,
+                            "status": tool_results["hotels"].get("status", "sample_data"),
+                            "disclaimer": tool_results["hotels"].get("disclaimer", "Hotel options for your stay")
+                        }
+                    
+                    print(f"🔄 Adapted hotel data structure with {len(hotel_structured['options'])} options")
+            
+            # Create emergency hotel data if needed as fallback
+            if hotel_structured is None or not hotel_structured.get('options') or len(hotel_structured.get('options', [])) == 0:
+                print("⚠️ No valid hotel data found, creating fallback hotel data")
+                hotel_fallback = self._create_fallback_hotels(request)
+                hotel_structured = {
+                    "options": hotel_fallback,
+                    "status": "sample_data",
+                    "disclaimer": "Sample hotel data (fallback)"
+                }
+                print(f"✅ Created fallback hotel data with {len(hotel_structured['options'])} options")
             
             # Ensure required fields are present
             itinerary = {
@@ -557,6 +596,119 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             "raw_output": output
         }
     
+    def _create_fallback_hotels(self, request: TripRequest) -> List[Dict[str, Any]]:
+        """Create fallback hotel options for when hotel search returns no results"""
+        import random
+        from datetime import datetime, timedelta
+        
+        # Map country names to cities for better display
+        destination = request.destination
+        if destination.upper() == "JAPAN":
+            cities = ["Tokyo", "Kyoto", "Osaka", "Hiroshima"]
+        elif destination.upper() == "INDIA":
+            cities = ["Mumbai", "Delhi", "Bangalore", "Chennai"]
+        elif destination.upper() in ["USA", "UNITED STATES"]:
+            cities = ["New York", "Los Angeles", "Chicago", "Miami"]
+        elif destination.upper() in ["UK", "UNITED KINGDOM"]:
+            cities = ["London", "Manchester", "Edinburgh", "Liverpool"]
+        elif destination.upper() == "AUSTRALIA":
+            cities = ["Sydney", "Melbourne", "Brisbane", "Perth"]
+        else:
+            cities = [destination]  # Use the original destination
+        
+        hotel_types = {
+            "budget": {
+                "names": ["Budget Inn", "City Stay", "Traveler Lodge", "Value Hotel", "Economy Suites"],
+                "stars": [2, 3],
+                "price_range": [1500, 3000],
+                "amenities": ["WiFi", "24-hour Front Desk", "Air Conditioning"]
+            },
+            "hotel": {
+                "names": ["Grand Hotel", "Plaza Hotel", "City Center Hotel", "Comfort Hotel", "Downtown Inn"],
+                "stars": [3, 4],
+                "price_range": [3500, 8000],
+                "amenities": ["WiFi", "Pool", "Restaurant", "Room Service", "Fitness Center"]
+            },
+            "luxury": {
+                "names": ["Royal Palace", "Grand Luxury Resort", "Premium Suites", "Five Star Hotel", "Elite Residences"],
+                "stars": [4, 5],
+                "price_range": [9000, 20000],
+                "amenities": ["WiFi", "Pool", "Spa", "Multiple Restaurants", "Fitness Center", "Concierge", "Room Service"]
+            },
+            "resort": {
+                "names": ["Beach Resort", "Mountain Retreat", "Vacation Resort", "Paradise Getaway", "Sunrise Resort"],
+                "stars": [4, 5],
+                "price_range": [8000, 18000],
+                "amenities": ["WiFi", "Pool", "Spa", "Beach Access", "Multiple Restaurants", "Activities"]
+            }
+        }
+        
+        # Choose the right hotel type based on request
+        hotel_type = request.accommodation_type.lower() if request.accommodation_type else "hotel"
+        if hotel_type not in hotel_types:
+            hotel_type = "hotel"  # default
+            
+        # Create 5-8 hotel options
+        num_hotels = random.randint(5, 8)
+        hotels = []
+        
+        for i in range(num_hotels):
+            city = random.choice(cities)
+            hotel_config = hotel_types[hotel_type]
+            
+            star_level = random.choice(hotel_config["stars"])
+            price_min, price_max = hotel_config["price_range"]
+            price_per_night = random.randint(price_min, price_max)
+            
+            if star_level >= 4:
+                rating = round(random.uniform(3.9, 4.9), 1)
+            else:
+                rating = round(random.uniform(3.0, 4.3), 1)
+                
+            # Calculate total price based on duration
+            nights = request.duration_days if request.duration_days else 3
+            total_price = price_per_night * nights
+            
+            # Create a unique name
+            hotel_name = f"{random.choice(hotel_config['names'])} {city}"
+            if i > 0 and any(h['name'] == hotel_name for h in hotels):
+                hotel_name += f" {chr(65 + i)}"  # Add A, B, C, etc.
+                
+            hotel = {
+                "id": f"hotel_{i+1}",
+                "name": hotel_name,
+                "rating": float(rating),
+                "star_level": star_level,
+                "price_per_night": float(price_per_night),
+                "currency": "INR",
+                "total_price": float(total_price),
+                "amenities": hotel_config["amenities"][:3 + i % 3],  # Vary amenities slightly
+                "room_type": random.choice(["Deluxe Room", "Standard Room", "Superior Room", "Suite"]),
+                "location": f"{city} - {random.choice(['City Center', 'Downtown', 'Tourist District'])}",
+                "address": f"{random.randint(1, 999)} {random.choice(['Main Street', 'Park Road', 'Tourism Avenue'])}",
+                "distance_to_center": float(random.uniform(0.3, 5.0)),
+                "breakfast_included": random.choice([True, False]),
+                "refundable": random.choice([True, False]),
+                "cancellation_policy": random.choice(["Free cancellation", "Non-refundable", "24-hour cancellation"]),
+                "images": [
+                    f"https://example.com/hotel_{i+1}_image1.jpg",
+                    f"https://example.com/hotel_{i+1}_image2.jpg"
+                ],
+                "availability": "Available",
+                "reviews_count": random.randint(50, 2000),
+                "property_type": hotel_type.capitalize()
+            }
+            hotels.append(hotel)
+        
+        # Sort by a calculated value score (better rating and lower price is better)
+        for hotel in hotels:
+            price_factor = 1.0 - (hotel["price_per_night"] / max(h["price_per_night"] for h in hotels))
+            hotel["value_score"] = (hotel["rating"] / 5) * 0.6 + price_factor * 0.4
+            
+        hotels.sort(key=lambda x: -x["value_score"])
+        print(f"✅ Created {len(hotels)} fallback hotels (best: {hotels[0]['name']})")
+        return hotels
+
     def _create_emergency_fallback(self, request: TripRequest) -> Dict[str, Any]:
         """Emergency fallback when everything fails"""
         return {

@@ -493,7 +493,45 @@ class HotelSearchTool:
                 "Single Room", "Double Room", "King Room", "Queen Room"
             ]
             
+            # Handle country-level destinations by mapping to specific cities
+            location_display = location
+            hotel_location = location
+            
+            # Common country to city mappings for sample data
+            if location.upper() in ["JAPAN", "TOKYO", "KYOTO", "OSAKA"]:
+                cities = ["Tokyo", "Kyoto", "Osaka", "Hiroshima", "Nagoya", "Fukuoka"]
+                hotel_location = random.choice(cities) if location.upper() == "JAPAN" else location
+            elif location.upper() in ["INDIA", "DELHI", "MUMBAI", "BANGALORE"]:
+                cities = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Jaipur"]
+                hotel_location = random.choice(cities) if location.upper() == "INDIA" else location
+            elif location.upper() in ["USA", "UNITED STATES", "NEW YORK", "LOS ANGELES"]:
+                cities = ["New York", "Los Angeles", "Chicago", "Miami", "San Francisco"]
+                hotel_location = random.choice(cities) if location.upper() in ["USA", "UNITED STATES"] else location
+            elif location.upper() in ["GERMANY", "BERLIN", "MUNICH", "FRANKFURT"]:
+                cities = ["Berlin", "Munich", "Frankfurt", "Hamburg", "Cologne", "Dresden"]
+                hotel_location = random.choice(cities) if location.upper() == "GERMANY" else location
+            elif location.upper() in ["UK", "UNITED KINGDOM", "LONDON", "MANCHESTER"]:
+                cities = ["London", "Manchester", "Edinburgh", "Liverpool", "Glasgow", "Birmingham"]
+                hotel_location = random.choice(cities) if location.upper() in ["UK", "UNITED KINGDOM"] else location
+            elif location.upper() in ["FRANCE", "PARIS", "NICE", "LYON"]:
+                cities = ["Paris", "Nice", "Lyon", "Marseille", "Bordeaux", "Strasbourg"]
+                hotel_location = random.choice(cities) if location.upper() == "FRANCE" else location
+            elif location.upper() in ["ITALY", "ROME", "MILAN", "VENICE"]:
+                cities = ["Rome", "Milan", "Venice", "Florence", "Naples", "Turin"]
+                hotel_location = random.choice(cities) if location.upper() == "ITALY" else location
+            elif location.upper() in ["SPAIN", "MADRID", "BARCELONA", "SEVILLE"]:
+                cities = ["Madrid", "Barcelona", "Seville", "Valencia", "Malaga", "Bilbao"]
+                hotel_location = random.choice(cities) if location.upper() == "SPAIN" else location
+            elif location.upper() in ["AUSTRALIA", "SYDNEY", "MELBOURNE", "BRISBANE"]:
+                cities = ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast"]
+                hotel_location = random.choice(cities) if location.upper() == "AUSTRALIA" else location
+            elif location.upper() in ["CHINA", "BEIJING", "SHANGHAI", "GUANGZHOU"]:
+                cities = ["Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Xi'an", "Hangzhou"]
+                hotel_location = random.choice(cities) if location.upper() == "CHINA" else location
+            
+            # Generate more hotels for better selection
             num_hotels = random.randint(8, 15)  # Generate 8-15 hotel options
+            print(f"🏨 Generating {num_hotels} sample hotels for {hotel_location}")
             
             # Ensure we don't have duplicate hotel names
             used_names = set()
@@ -581,9 +619,20 @@ class HotelSearchTool:
                 
                 total_price = base_price * nights * rooms
                 
+                # Handle country vs city search by providing appropriate city names for countries
+                location_display = location
+                if location.upper() == "JAPAN":
+                    location_display = random.choice(["Tokyo", "Kyoto", "Osaka", "Hiroshima", "Nara", "Sapporo", "Fukuoka", "Nagoya"])
+                elif location.upper() == "INDIA":
+                    location_display = random.choice(["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Kolkata", "Jaipur", "Goa"])
+                elif location.upper() == "USA" or location.upper() == "UNITED STATES":
+                    location_display = random.choice(["New York", "Los Angeles", "Chicago", "Miami", "Las Vegas", "San Francisco", "Boston", "Seattle"])
+                elif location.upper() == "UK" or location.upper() == "UNITED KINGDOM":
+                    location_display = random.choice(["London", "Manchester", "Edinburgh", "Glasgow", "Liverpool", "Birmingham", "Oxford", "Cambridge"])
+                
                 hotel = {
                     "id": f"hotel_{i+1}",
-                    "name": name,
+                    "name": f"{name} {location_display}",  # Add city name to hotel name for clarity
                     "rating": float(rating),  # Ensure float for serialization
                     "star_level": star_level,
                     "price_per_night": float(base_price),  # Ensure float for serialization
@@ -591,7 +640,7 @@ class HotelSearchTool:
                     "total_price": float(total_price),  # Ensure float for serialization
                     "amenities": amenities,
                     "room_type": room_type,
-                    "location": f"{location} - {random.choice(['City Center', 'Airport Area', 'Tourist District', 'Business District', 'Historic Quarter'])}",
+                    "location": f"{location_display} - {random.choice(['City Center', 'Airport Area', 'Tourist District', 'Business District', 'Historic Quarter'])}",
                     "address": f"{random.randint(1, 999)} {random.choice(['Main St', 'Park Ave', 'Beach Road', 'Market Lane', 'Tourism Road'])}",
                     "distance_to_center": float(random.uniform(0.2, 8.0)),  # in km
                     "breakfast_included": random.choice([True, False]),
@@ -671,6 +720,130 @@ class HotelSearchTool:
         except Exception as e:
             print(f"⚠️ Error calculating nights: {str(e)}")
             nights = 3  # Default to 3 nights
+        
+        # Always make sure we have hotels when using sample data
+        if len(hotels) == 0 and api_used in ["sample", "serpapi_fallback", "error_fallback"]:
+            print("⚠️ No sample hotels generated! This is a critical issue, regenerating...")
+            
+            # Map countries to cities for better display
+            location_display = location
+            country_cities_map = {
+                "JAPAN": ["Tokyo", "Kyoto", "Osaka", "Hiroshima", "Fukuoka"],
+                "INDIA": ["Mumbai", "Delhi", "Bangalore", "Chennai", "Jaipur"],
+                "USA": ["New York", "Los Angeles", "Chicago", "San Francisco", "Miami"],
+                "UNITED STATES": ["New York", "Los Angeles", "Chicago", "San Francisco", "Miami"],
+                "UK": ["London", "Manchester", "Edinburgh", "Liverpool", "Glasgow"],
+                "UNITED KINGDOM": ["London", "Manchester", "Edinburgh", "Liverpool", "Glasgow"],
+                "GERMANY": ["Berlin", "Munich", "Frankfurt", "Hamburg", "Cologne"],
+                "FRANCE": ["Paris", "Nice", "Lyon", "Marseille", "Bordeaux"],
+                "SPAIN": ["Madrid", "Barcelona", "Seville", "Valencia", "Malaga"],
+                "ITALY": ["Rome", "Milan", "Venice", "Florence", "Naples"],
+                "AUSTRALIA": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide"],
+                "CANADA": ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa"],
+                "CHINA": ["Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Xi'an"],
+                "THAILAND": ["Bangkok", "Phuket", "Chiang Mai", "Pattaya", "Krabi"]
+            }
+            
+            # Find appropriate city name for the location
+            location_upper = location.upper()
+            if location_upper in country_cities_map:
+                location_display = random.choice(country_cities_map[location_upper])
+                print(f"🌎 Mapped country {location} to city {location_display} for hotel display")
+            
+            # Generate realistic hotel names based on location
+            premium_names = ["Grand Hotel", "Royal Palace", "Luxury Suites", "The Ritz", "Four Seasons"]
+            standard_names = ["Comfort Inn", "Best Western", "Holiday Hotel", "City Center Hotel", "Park Plaza"]
+            budget_names = ["Budget Stay", "Economy Lodge", "Traveler's Rest", "Value Inn", "Sleep Well"]
+            
+            # Vary the hotel types based on location quality
+            hotel_categories = [premium_names, standard_names, budget_names]
+            weights = [0.3, 0.5, 0.2]  # 30% premium, 50% standard, 20% budget
+            
+            # Generate 5-8 hotels as fallback
+            num_hotels = random.randint(5, 8)
+            hotel_type_categories = random.choices(hotel_categories, weights=weights, k=num_hotels)
+            
+            for i in range(num_hotels):
+                # Select hotel name from appropriate category
+                hotels_from_category = hotel_type_categories[i]
+                base_name = random.choice(hotels_from_category)
+                
+                # Add location suffix or other distinguishing feature if needed
+                if i > 0 and any(h["name"] == f"{base_name} {location_display}" for h in hotels):
+                    name = f"{base_name} {location_display} {chr(65 + i)}"  # Add A, B, C, etc.
+                else:
+                    name = f"{base_name} {location_display}"
+                
+                # Set pricing and rating based on category
+                if hotels_from_category == premium_names:
+                    price = random.randint(8000, 25000)
+                    stars = random.randint(4, 5)
+                    rating = round(random.uniform(4.0, 4.9), 1)
+                    amenities = ["WiFi", "Pool", "Spa", "Fine Dining", "Concierge", "Room Service"]
+                    room_type = random.choice(["Deluxe Suite", "Executive Room", "Premium King"])
+                elif hotels_from_category == standard_names:
+                    price = random.randint(4000, 8000)
+                    stars = random.randint(3, 4)
+                    rating = round(random.uniform(3.5, 4.5), 1)
+                    amenities = ["WiFi", "Restaurant", "Fitness Center", "Bar", "Breakfast"]
+                    room_type = random.choice(["Standard Double", "King Room", "Twin Room"])
+                else:  # budget_names
+                    price = random.randint(1500, 4000)
+                    stars = random.randint(2, 3)
+                    rating = round(random.uniform(3.0, 4.0), 1)
+                    amenities = ["WiFi", "24-hour Front Desk", "TV", "Air Conditioning"]
+                    room_type = random.choice(["Standard Room", "Economy Double", "Basic Room"])
+                
+                # Calculate total price
+                total_price = price * nights
+                
+                # Create the hotel object
+                hotel = {
+                    "id": f"hotel_{i+1}",
+                    "name": name,
+                    "rating": float(rating),
+                    "star_level": stars,
+                    "price_per_night": float(price),
+                    "currency": "INR",
+                    "total_price": float(total_price),
+                    "amenities": amenities[:random.randint(3, len(amenities))],  # Randomize amenity count
+                    "room_type": room_type,
+                    "location": f"{location_display} - {random.choice(['City Center', 'Downtown', 'Tourist District', 'Business District'])}",
+                    "address": f"{random.randint(1, 999)} {random.choice(['Main St', 'Park Avenue', 'Plaza Road', 'Central Blvd'])}",
+                    "distance_to_center": float(random.uniform(0.2, 5.0)),
+                    "breakfast_included": random.choice([True, False]),
+                    "refundable": random.choice([True, False]),
+                    "cancellation_policy": random.choice(["Free cancellation", "Cancellation with fee", "Non-refundable"]),
+                    "images": [
+                        f"https://example.com/hotel_{location_display.lower()}_{i+1}_1.jpg",
+                        f"https://example.com/hotel_{location_display.lower()}_{i+1}_2.jpg"
+                    ],
+                    "availability": "Available",
+                    "reviews_count": random.randint(50, 2000),
+                    "property_type": hotel_type.capitalize()
+                }
+                hotels.append(hotel)
+            
+            # Sort by rating and price for better display
+            for hotel in hotels:
+                # Calculate a value score: higher rating and more amenities are better, lower price is better
+                price_factor = 1.0 - (hotel["price_per_night"] / max(h["price_per_night"] for h in hotels))
+                amenities_factor = len(hotel["amenities"]) / 6  # Normalize to 0-1 range assuming max 6 amenities
+                breakfast_factor = 0.1 if hotel["breakfast_included"] else 0
+                
+                # Combined score with weights
+                hotel["value_score"] = (
+                    (hotel["rating"] / 5) * 0.5 +  # 50% weight to rating
+                    price_factor * 0.3 +           # 30% weight to price
+                    amenities_factor * 0.1 +       # 10% weight to amenity count
+                    breakfast_factor +             # 10% bonus for breakfast
+                    (0.05 if hotel["refundable"] else 0)  # 5% bonus for being refundable
+                )
+            
+            # Sort by value score (higher is better)
+            hotels.sort(key=lambda x: -x["value_score"])
+            
+            print(f"✅ Generated {len(hotels)} fallback hotels for {location_display}")
             
         # Calculate price ranges for analytics or provide defaults for empty results
         if hotels:
