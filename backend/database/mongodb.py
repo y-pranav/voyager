@@ -111,6 +111,15 @@ class MongoDB:
         try:
             update_data["updated_at"] = datetime.utcnow()
             
+            # Add detailed logging for debugging
+            if 'itinerary' in update_data:
+                flight_status = update_data['itinerary'].get('flights', {}).get('status', 'unknown')
+                hotel_status = update_data['itinerary'].get('hotels', {}).get('status', 'unknown')
+                flight_count = len(update_data['itinerary'].get('flights', {}).get('options', []))
+                hotel_count = len(update_data['itinerary'].get('hotels', {}).get('options', []))
+                print(f"💾 Saving itinerary to DB - Flight status: {flight_status}, Hotel status: {hotel_status}")
+                print(f"💾 Flight count: {flight_count}, Hotel count: {hotel_count}")
+                
             result = await self.trip_sessions.update_one(
                 {"session_id": session_id},
                 {"$set": update_data}

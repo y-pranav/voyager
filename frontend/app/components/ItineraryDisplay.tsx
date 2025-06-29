@@ -165,18 +165,35 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
     
     return (
       <div>
-        {/* Sample Data Disclaimer */}
-        <div className="bg-yellow-50 border border-yellow-200 p-2 rounded-lg mb-4 text-xs">
-          <div className="flex items-center">
-            <div className="mr-2 text-yellow-600">⚠️</div>
-            <div>
-              <p className="text-yellow-800 font-medium">
-                Sample data for demonstration purposes only
-              </p>
-              <p className="text-yellow-700">Showing {hotels.options.length} hotel options</p>
+        {/* Sample Data Disclaimer - Only show when status is not live_data */}
+        {hotels.status !== 'live_data' && (
+          <div className="bg-yellow-50 border border-yellow-200 p-2 rounded-lg mb-4 text-xs">
+            <div className="flex items-center">
+              <div className="mr-2 text-yellow-600">⚠️</div>
+              <div>
+                <p className="text-yellow-800 font-medium">
+                  Sample data for demonstration purposes only
+                </p>
+                <p className="text-yellow-700">Showing {hotels.options.length} hotel options</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+        
+        {/* Live Data Disclaimer - Show when using real API data */}
+        {hotels.status === 'live_data' && (
+          <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg mb-4 text-xs">
+            <div className="flex items-center">
+              <div className="mr-2 text-blue-600">🌐</div>
+              <div>
+                <p className="text-blue-800 font-medium">
+                  Real-time hotel data via SerpAPI
+                </p>
+                <p className="text-blue-700">Showing {hotels.options.length} hotel options</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Hotel List */}
         <div 
@@ -610,17 +627,33 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
                   </div>
                 </div>
                 
-                {/* Pricing Disclaimer */}
-                <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="mr-2 text-yellow-600">⚠️</div>
-                    <div>
-                      <p className="text-xs text-yellow-800 font-medium">
-                        Sample data for demonstration purposes only
-                      </p>
+                {/* Pricing Disclaimer - Only show for sample data */}
+                {itinerary.flights.status !== 'live_data' && (
+                  <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="mr-2 text-yellow-600">⚠️</div>
+                      <div>
+                        <p className="text-xs text-yellow-800 font-medium">
+                          Sample data for demonstration purposes only
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+                
+                {/* Live Data Disclaimer - Show for real API data */}
+                {itinerary.flights.status === 'live_data' && (
+                  <div className="mt-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="mr-2 text-blue-600">🌐</div>
+                      <div>
+                        <p className="text-xs text-blue-800 font-medium">
+                          Real-time flight data via SerpAPI
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-3 bg-gray-50 rounded-lg">
