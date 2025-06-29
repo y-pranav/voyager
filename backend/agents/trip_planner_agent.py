@@ -244,14 +244,30 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             print(f"📊 Flight tool returned: {type(flight_result)}")
             print(f"🔍 Flight result keys: {list(flight_result.keys()) if isinstance(flight_result, dict) else 'Not a dict'}")
             
-            if isinstance(flight_result, dict) and 'flights' in flight_result:
-                print(f"✈️ Found {len(flight_result['flights'])} structured flights")
-                # Store properly structured flight data for frontend
-                tool_results["flights"] = {
-                    "formatted": flight_result.get("formatted", ""),
-                    "options": flight_result["flights"]  # This is what frontend expects
-                }
-                print(f"🎯 Stored flights in tool_results with {len(flight_result['flights'])} options")
+            if isinstance(flight_result, dict):
+                if 'flights' in flight_result and isinstance(flight_result['flights'], dict) and 'options' in flight_result['flights']:
+                    # Already has the correct structure with flights.options
+                    print(f"✈️ Found {len(flight_result['flights']['options'])} structured flights")
+                    tool_results["flights"] = flight_result['flights']
+                    print(f"🎯 Stored flights in tool_results with {len(flight_result['flights']['options'])} options")
+                elif 'flights' in flight_result and isinstance(flight_result['flights'], list):
+                    # Handle case where flights is a direct list of options
+                    print(f"✈️ Found {len(flight_result['flights'])} structured flights")
+                    tool_results["flights"] = {
+                        "formatted": flight_result.get("formatted", ""),
+                        "options": flight_result["flights"],  # This is what frontend expects
+                        "status": "sample_data",
+                        "disclaimer": "Sample flight data for demonstration purposes"
+                    }
+                    print(f"🎯 Stored flights in tool_results with {len(flight_result['flights'])} options")
+                else:
+                    print(f"⚠️ Unexpected flight result structure, trying to adapt")
+                    tool_results["flights"] = {
+                        "formatted": flight_result.get("formatted", ""),
+                        "options": flight_result.get("flights", []),
+                        "status": "adapted_data",
+                        "disclaimer": "Sample flight data (adapted format)"
+                    }
             else:
                 print(f"❌ Unexpected flight result format: {flight_result}")
                 tool_results["flights"] = {"formatted": str(flight_result), "options": []}
@@ -313,20 +329,49 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
             print(f"✈️ Flight data type: {type(flight_data)}")
             print(f"🔍 Flight data keys: {list(flight_data.keys()) if isinstance(flight_data, dict) else 'Not a dict'}")
             
-            if isinstance(flight_data, dict) and "options" in flight_data:
-                flight_structured = flight_data  # Already in correct format
+            # Ensure flight data always has the expected structure for the frontend
+            if isinstance(flight_data, dict) and "options" in flight_data and isinstance(flight_data["options"], list):
+                # Already in correct format
+                flight_structured = flight_data
                 print(f"✅ Using structured flight data with {len(flight_data['options'])} options")
-            else:
-                # Fallback - try to extract from old format
-                print(f"🔄 Converting flight data format...")
-                if isinstance(flight_data, dict) and 'flights' in flight_data:
+            elif isinstance(flight_data, dict) and 'flights' in flight_data:
+                # Legacy format: flight_data.flights is the options array
+                print(f"🔄 Converting flight data from legacy format...")
+                flight_options = flight_data.get("flights", [])
+                if isinstance(flight_options, list):
                     flight_structured = {
                         "formatted": flight_data.get("formatted", ""),
-                        "options": flight_data.get("flights", [])
+                        "options": flight_options,
+                        "status": flight_data.get("status", "sample_data"),
+                        "disclaimer": flight_data.get("disclaimer", "Sample flight data")
                     }
                 else:
-                    flight_structured = {"formatted": str(flight_data), "options": []}
+                    # Handle nested structure
+                    flight_structured = {
+                        "formatted": flight_data.get("formatted", ""),
+                        "options": flight_options.get("options", []) if isinstance(flight_options, dict) else [],
+                        "status": flight_options.get("status", "sample_data") if isinstance(flight_options, dict) else "sample_data",
+                        "disclaimer": flight_options.get("disclaimer", "Sample flight data") if isinstance(flight_options, dict) else "Sample flight data"
+                    }
                 print(f"🔧 Converted to {len(flight_structured['options'])} options")
+            elif isinstance(flight_data, list):
+                # Direct array of flight options
+                print(f"🔄 Converting flight data from direct list...")
+                flight_structured = {
+                    "options": flight_data,
+                    "status": "sample_data",
+                    "disclaimer": "Sample flight data for demonstration purposes"
+                }
+                print(f"🔧 Converted direct list to {len(flight_structured['options'])} options")
+            else:
+                # Emergency fallback
+                print(f"⚠️ Using empty flight data structure")
+                flight_structured = {
+                    "options": [],
+                    "status": "error",
+                    "disclaimer": "No flight data available"
+                }
+                print(f"⚠️ No valid flight options found")
             
             # Try to parse JSON from the response
             try:
@@ -363,12 +408,50 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 for i, flight in enumerate(itinerary['flights']['options'][:3]):
                     print(f"📤 Frontend Flight {i+1}: {flight.get('airlines', [])} - ₹{flight.get('price_inr', 0):,.0f}")
             
+            # Add debug info for frontend
+            print("\n🔍 FINAL ITINERARY STRUCTURE:")
+            print(f"- flights: {type(itinerary['flights'])} with {len(itinerary['flights'].get('options', []))} options")
+            print(f"- Has flights.options? {'options' in itinerary['flights']}")
+            print(f"- First flight airline: {itinerary['flights'].get('options', [{}])[0].get('airlines', []) if itinerary['flights'].get('options') else 'N/A'}")
+            
+            # Ensure flights.options always exists
+            if 'flights' in itinerary and not itinerary['flights'].get('options'):
+                print("⚠️ Adding empty options array to flights")
+                itinerary['flights']['options'] = []
+            
             return itinerary
             
         except Exception as e:
             logger.error(f"Error structuring itinerary: {str(e)}")
             # Return a basic structure if everything fails
             return self._create_emergency_fallback(request)
+
+    def _get_airport_code(self, location: str) -> str:
+        """Convert city name to IATA airport code for fallback scenarios"""
+        # Common airport mappings
+        airport_codes = {
+            # India
+            'delhi': 'DEL', 'new delhi': 'DEL',
+            'mumbai': 'BOM', 'bombay': 'BOM',
+            'bangalore': 'BLR', 'bengaluru': 'BLR',
+            'chennai': 'MAA', 'madras': 'MAA',
+            'hyderabad': 'HYD',
+            'kolkata': 'CCU', 'calcutta': 'CCU',
+            'goa': 'GOI',
+            
+            # International
+            'tokyo': 'NRT', 'japan': 'NRT',
+            'london': 'LHR', 'uk': 'LHR',
+            'paris': 'CDG', 'france': 'CDG',
+            'new york': 'JFK', 'nyc': 'JFK',
+            'dubai': 'DXB', 'uae': 'DXB',
+            'singapore': 'SIN',
+            'bangkok': 'BKK', 'thailand': 'BKK',
+            'sydney': 'SYD', 'australia': 'SYD'
+        }
+        
+        location_lower = location.lower().strip()
+        return airport_codes.get(location_lower, location.upper()[:3])
 
     def _create_fallback_structure(self, output: str, request: TripRequest) -> Dict[str, Any]:
         """Create a basic structure when JSON parsing fails"""
@@ -386,7 +469,30 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                 }
                 for i in range(request.duration_days)
             ],
-            "flights": {"status": "found", "cost": request.budget * 0.3},
+            "flights": {
+                "options": [{
+                    "id": "fallback1",
+                    "price_inr": float(request.budget * 0.25),
+                    "currency": "INR",
+                    "airlines": ["Sample Airline"],
+                    "total_duration": "PT2H0M",
+                    "segments": [{
+                        "departure_airport": self._get_airport_code(request.source),
+                        "arrival_airport": self._get_airport_code(request.destination),
+                        "departure_time": "10:00",
+                        "arrival_time": "12:00",
+                        "airline": "Sample Airline",
+                        "flight_number": "SA123",
+                        "duration": "2h 0m",
+                        "cabin": "Economy",
+                        "aircraft": "A320",
+                        "stops": 0
+                    }],
+                    "total_stops": 0
+                }],
+                "status": "fallback",
+                "disclaimer": "Sample fallback flight data"
+            },
             "accommodation_summary": {"type": request.accommodation_type, "cost": request.budget * 0.4},
             "cost_breakdown": {
                 "flights": request.budget * 0.3,

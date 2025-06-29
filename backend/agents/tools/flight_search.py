@@ -285,8 +285,12 @@ class FlightSearchTool:
             dep_time = first_segment['departure_time']
             arr_time = last_segment['arrival_time']
             
-            # Format duration
-            duration = flight['total_duration'].replace('PT', '').replace('H', 'h ').replace('M', 'm').lower()
+            # Format duration safely
+            try:
+                duration = flight['total_duration'].replace('PT', '').replace('H', 'h ').replace('M', 'm').lower()
+            except:
+                # Fallback if total_duration is not formatted as expected
+                duration = "varies"
             
             # Stops info
             stops_text = "Direct" if flight['total_stops'] == 0 else f"{flight['total_stops']} stop(s)"
@@ -295,7 +299,7 @@ class FlightSearchTool:
             result_lines.append(f"   Route: {first_segment['departure_airport']} → {last_segment['arrival_airport']}")
             result_lines.append(f"   Time: {dep_time} - {arr_time} ({duration})")
             result_lines.append(f"   Stops: {stops_text}")
-            result_lines.append(f"   Price: ₹{flight['price_inr']:,.0f}")
+            result_lines.append(f"   Price: ₹{int(flight['price_inr']):,}")  # Ensure we're handling price as int
             result_lines.append(f"   Cabin: {first_segment['cabin']}")
             
             if flight['bookable_seats'] > 0:
@@ -338,58 +342,144 @@ class FlightSearchTool:
         return "\n".join(result_lines)
     
     def _get_fallback_results_structured(self, origin: str, destination: str, passengers: int) -> List[Dict]:
-        """Create fallback flight results when SerpAPI is unavailable"""
+        """Create enhanced sample flight results with varied options"""
         import random
         
-        print("⚠️ Using structured fallback flight data")
+        print("⚠️ Using structured sample flight data")
         origin_code = self._get_airport_code(origin)
         dest_code = self._get_airport_code(destination)
         
-        # Create sample flights
+        # Create sample flights with more variety
         flights = []
-        airlines = ["Air India", "IndiGo", "SpiceJet", "Vistara", "GoAir"]
+        airlines = ["Air India", "IndiGo", "SpiceJet", "Vistara", "GoAir", 
+                  "Emirates", "Etihad Airways", "Qatar Airways", "Lufthansa", "British Airways",
+                  "Singapore Airlines", "Thai Airways", "ANA", "Cathay Pacific", "Japan Airlines"]
+        aircraft_types = ["B737", "A320", "A321", "B777", "B787", "A380", "A350", "B747", "A330", "B767"]
+        cabin_classes = ["Economy", "Premium Economy", "Business", "First"]
+        fare_types = ["PUBLISHED", "SPECIAL", "DISCOUNTED", "SALE", "REGULAR"]
         
-        for i in range(3):
-            airline = random.choice(airlines)
-            airline_code = airline.split()[0][:2].upper()
-            flight_num = random.randint(100, 999)
-            price = random.randint(8000, 25000) * passengers
-            dep_hour = random.randint(6, 22)
-            dep_min = random.choice([0, 15, 30, 45])
-            duration_hrs = random.randint(1, 5)
-            duration_mins = random.randint(0, 59)
+        # Generate a variety of flights (8-12 options)
+        for i in range(random.randint(8, 12)):
+            # Decide if this will be a direct flight or have stops
+            stops = random.choices([0, 1, 2], weights=[0.6, 0.3, 0.1])[0]
             
-            # Calculate arrival time
-            arr_hour = (dep_hour + duration_hrs) % 24
-            arr_min = (dep_min + duration_mins) % 60
+            # Select airlines (can be multiple for code-share)
+            selected_airlines = random.sample(airlines, k=min(stops+1, 3))
+            main_airline = selected_airlines[0]
+            airline_code = main_airline.split()[0][:2].upper()
             
+            # Base price calculation with variability
+            base_price = random.randint(8000, 25000)
+            if stops == 0:
+                # Direct flights can be premium priced
+                price = base_price * (1 + random.uniform(0.1, 0.3))
+            else:
+                # Flights with stops may be cheaper
+                price = base_price * (1 - random.uniform(0.05, 0.15) * stops)
+            
+            price = price * passengers  # Multiply by passenger count
+            
+            # Initial departure time
+            dep_hour = random.randint(4, 23)
+            dep_min = random.choice([0, 10, 15, 20, 30, 40, 45, 50])
+            
+            # Total duration calculation
+            base_duration_hrs = max(1, int(abs(hash(dest_code) - hash(origin_code)) % 10))  # Pseudo-realistic duration
+            total_duration_hrs = base_duration_hrs + random.randint(0, 3) + (stops * random.uniform(1, 3))
+            total_duration_mins = random.randint(0, 59)
+            
+            # Each segment can be a different flight
+            segments = []
+            segment_airports = [origin_code]
+            
+            # Add connecting airports for multi-segment flights
+            if stops > 0:
+                # Common connecting hubs
+                connecting_hubs = ["DXB", "AUH", "DOH", "FRA", "LHR", "CDG", "SIN", "BKK", "DEL", "BOM"]
+                # Filter out origin and destination from possible hubs
+                possible_hubs = [hub for hub in connecting_hubs if hub != origin_code and hub != dest_code]
+                # Select random hubs for connections
+                connecting_airports = random.sample(possible_hubs, stops)
+                segment_airports.extend(connecting_airports)
+            
+            segment_airports.append(dest_code)
+            
+            # Calculate segment durations
+            segment_durations = []
+            remaining_duration_hrs = total_duration_hrs
+            remaining_duration_mins = total_duration_mins
+            
+            for s in range(stops + 1):
+                if s == stops:  # Last segment
+                    segment_durations.append((remaining_duration_hrs, remaining_duration_mins))
+                else:
+                    # Random proportion of total time
+                    proportion = random.uniform(0.3, 0.7)
+                    seg_hrs = int(remaining_duration_hrs * proportion)
+                    seg_mins = int(remaining_duration_mins * proportion)
+                    segment_durations.append((seg_hrs, seg_mins))
+                    remaining_duration_hrs -= seg_hrs
+                    remaining_duration_mins -= seg_mins
+                    if remaining_duration_mins < 0:
+                        remaining_duration_hrs -= 1
+                        remaining_duration_mins += 60
+            
+            # Track current time for segments
+            current_hour = dep_hour
+            current_min = dep_min
+            
+            for s in range(stops + 1):
+                # Calculate segment details
+                current_airline = selected_airlines[min(s, len(selected_airlines)-1)]
+                current_code = current_airline.split()[0][:2].upper()
+                flight_num = random.randint(100, 999)
+                
+                segment_hrs, segment_mins = segment_durations[s]
+                
+                # Calculate arrival time for this segment
+                arr_hour = int((current_hour + segment_hrs) % 24)
+                arr_min = int((current_min + segment_mins) % 60)
+                
+                # Select cabin class with business/first more common on international routes
+                cabin = random.choices(cabin_classes, weights=[0.7, 0.15, 0.1, 0.05])[0]
+                
+                segments.append({
+                    'flight_number': f"{current_code}{flight_num}",
+                    'airline': current_airline,
+                    'departure_airport': segment_airports[s],
+                    'departure_time': f"{int(current_hour):02d}:{int(current_min):02d}",
+                    'arrival_airport': segment_airports[s+1],
+                    'arrival_time': f"{int(arr_hour):02d}:{int(arr_min):02d}",
+                    'duration': f"{int(segment_hrs)}h {int(segment_mins)}m",
+                    'cabin': cabin,
+                    'aircraft': random.choice(aircraft_types),
+                    'stops': 0  # Each segment has no stops within itself
+                })
+                
+                # Add layover time between segments
+                if s < stops:
+                    layover_hrs = random.randint(1, 3)
+                    layover_mins = random.randint(0, 59)
+                    current_hour = (arr_hour + layover_hrs) % 24
+                    current_min = (arr_min + layover_mins) % 60
+            
+            # Create the full flight record
             flights.append({
                 'id': str(i+1),
-                'price_inr': float(price),
-                'price_original': float(price),
+                'price_inr': float(round(price)),  # Ensure it's a proper float with no decimal issues
+                'price_original': float(round(price)),  # Ensure it's a proper float with no decimal issues
                 'currency': 'INR',
-                'airlines': [airline],
-                'total_duration': f"PT{duration_hrs}H{duration_mins}M",
-                'segments': [{
-                    'flight_number': f"{airline_code}{flight_num}",
-                    'airline': airline,
-                    'departure_airport': origin_code,
-                    'departure_time': f"{dep_hour:02d}:{dep_min:02d}",
-                    'arrival_airport': dest_code,
-                    'arrival_time': f"{arr_hour:02d}:{arr_min:02d}",
-                    'duration': f"{duration_hrs}h {duration_mins}m",
-                    'cabin': 'Economy',
-                    'aircraft': random.choice(['B737', 'A320', 'A321']),
-                    'stops': 0
-                }],
-                'total_stops': 0,
-                'validating_airlines': [airline],
+                'airlines': selected_airlines,
+                'total_duration': f"PT{int(total_duration_hrs)}H{int(total_duration_mins)}M",
+                'segments': segments,
+                'total_stops': stops,
+                'validating_airlines': selected_airlines,
                 'bookable_seats': random.randint(1, 20),
-                'instant_ticketing_required': False,
+                'instant_ticketing_required': random.choice([True, False]),
                 'last_ticketing_date': datetime.now().strftime("%Y-%m-%d"),
-                'fare_type': 'PUBLISHED',
-                'price_disclaimer': 'Sample data - SerpAPI needed for real flights',
-                'api_source': 'Fallback',
+                'fare_type': random.choice(fare_types),
+                'price_disclaimer': 'Sample flight data for demonstration',
+                'api_source': 'Sample',
                 'environment': 'demo'
             })
         
@@ -405,39 +495,21 @@ class FlightSearchTool:
         budget_max: Optional[float] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Execute the flight search using SerpAPI and return both formatted string and structured data"""
+        """Execute the flight search and return both formatted string and structured data"""
         
-        print(f"🚀 Starting SerpAPI flight search: {origin} → {destination} on {departure_date}")
+        print(f"🚀 Starting flight search: {origin} → {destination} on {departure_date}")
         print(f"📊 Search params - Passengers: {passengers}, Budget: {budget_max}")
         
-        # For SerpAPI, we'll use one-way search by default (which works based on our tests)
-        # We only need a return date if explicitly doing a round-trip search
-        print(f"ℹ️ Using one-way search with SerpAPI (type=2)")
-        # No need to generate default return date as we're using one-way search
+        # COMMENTED OUT: API calls to SerpAPI as requested
+        # We'll use sample data instead of making real API calls
+        print(f"ℹ️ Using sample flight data only (no API calls)")
         
         try:
-            # Search flights using SerpAPI
-            serpapi_results = self._search_serpapi_flights(
-                origin=origin,
-                destination=destination,
-                departure_date=departure_date,
-                passengers=passengers,
-                return_date=None  # We're using one-way search (type=2)
-            )
-            
-            print(f"🔍 Raw SerpAPI results count: {len(serpapi_results)}")
-            
-            # If no results, use fallback
-            if not serpapi_results:
-                print("⚠️ No SerpAPI results, using fallback data")
-                structured_flights = self._get_fallback_results_structured(origin, destination, passengers)
-                # Generate formatted text results for LLM
-                formatted_text = self._get_fallback_results()
-            else:
-                # Format structured data for frontend
-                structured_flights = self._format_flight_results_structured(serpapi_results, budget_max)
-                # Format text for LLM
-                formatted_text = self._format_flight_results_text(structured_flights)
+            # Always use sample data - no API calls to SerpAPI/Amadeus
+            print("⚠️ Using enhanced sample flight data")
+            structured_flights = self._get_fallback_results_structured(origin, destination, passengers)
+            # Generate formatted text results for LLM
+            formatted_text = self._format_flight_results_text(structured_flights)
             
             print(f"📋 Structured flights count after processing: {len(structured_flights)}")
             print(f"💰 Budget constraint applied: {budget_max}")
@@ -453,9 +525,14 @@ class FlightSearchTool:
             departure_date_str = departure_date.strftime('%Y-%m-%d') if hasattr(departure_date, 'strftime') else str(departure_date)
             return_date_str = return_date.strftime('%Y-%m-%d') if return_date and hasattr(return_date, 'strftime') else str(return_date) if return_date else None
             
+            # Ensure we're returning the correct structure that the frontend expects
             result = {
                 'formatted': formatted_text,
-                'flights': structured_flights,
+                'flights': {
+                    'options': structured_flights,  # Make sure flights are under 'options' key
+                    'status': 'sample_data',
+                    'disclaimer': 'Sample flight data for demonstration purposes'
+                },
                 'search_params': {
                     'origin': origin,
                     'destination': destination,
@@ -465,7 +542,7 @@ class FlightSearchTool:
                     'budget_max': budget_max
                 },
                 'total_options': len(structured_flights),
-                'api_used': 'serpapi' if serpapi_results else 'fallback'
+                'api_used': 'sample'
             }
             
             print(f"✅ FlightSearchTool returning {len(structured_flights)} flights to TripPlannerAgent")
@@ -476,16 +553,28 @@ class FlightSearchTool:
             print(f"❌ Error in flight search: {e}")
             traceback.print_exc()
             
-            # Use fallback data even when errors occur
-            fallback_flights = self._get_fallback_results_structured(origin, destination, passengers)
+            try:
+                # Use fallback data even when errors occur
+                fallback_flights = self._get_fallback_results_structured(origin, destination, passengers)
+                
+                # Ensure dates are strings for JSON serialization
+                departure_date_str = departure_date.strftime('%Y-%m-%d') if hasattr(departure_date, 'strftime') else str(departure_date)
+                return_date_str = return_date.strftime('%Y-%m-%d') if return_date and hasattr(return_date, 'strftime') else str(return_date) if return_date else None
+            except:
+                # Final fallback if even structured fallback fails
+                print("⚠️ Critical error: Using emergency basic fallback")
+                fallback_flights = [{"id": "1", "price_inr": float(10000), "airlines": ["Sample Airline"], "total_duration": "PT2H0M", "segments": [{"departure_airport": "DEP", "arrival_airport": "ARR", "departure_time": "10:00", "arrival_time": "12:00", "airline": "Sample Airline", "flight_number": "SA123", "duration": "2h 0m", "cabin": "Economy", "aircraft": "A320", "stops": 0}], "total_stops": 0}]
+                departure_date_str = str(departure_date)
+                return_date_str = str(return_date) if return_date else None
             
-            # Ensure dates are strings for JSON serialization
-            departure_date_str = departure_date.strftime('%Y-%m-%d') if hasattr(departure_date, 'strftime') else str(departure_date)
-            return_date_str = return_date.strftime('%Y-%m-%d') if return_date and hasattr(return_date, 'strftime') else str(return_date) if return_date else None
-            
+            # Match the structure expected by the frontend even in error cases
             return {
                 'formatted': f"Error searching flights: {str(e)}\n\nShowing sample flight options instead.",
-                'flights': fallback_flights,
+                'flights': {
+                    'options': fallback_flights,  # Make sure flights are under 'options' key
+                    'status': 'error_fallback',
+                    'disclaimer': 'Error occurred. Sample flight data shown as fallback.'
+                },
                 'search_params': {
                     'origin': origin,
                     'destination': destination,

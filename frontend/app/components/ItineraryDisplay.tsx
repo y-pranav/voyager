@@ -7,38 +7,37 @@ import {
   Download, Share2, Heart
 } from 'lucide-react'
 
+// Flight-related interfaces
 interface FlightSegment {
-  flight_number: string
-  airline: string
-  departure_airport: string
-  departure_time: string
-  arrival_airport: string
-  arrival_time: string
-  duration: string
-  cabin: string
-  aircraft: string
-  stops: number
+  flight_number?: string
+  airline?: string
+  departure_airport?: string
+  departure_time?: string
+  arrival_airport?: string
+  arrival_time?: string
+  duration?: string
+  cabin?: string
+  aircraft?: string
+  stops?: number
 }
 
 interface FlightOption {
   id: string
   price_inr: number
-  price_original: number
-  currency: string
   airlines: string[]
   total_duration: string
   segments: FlightSegment[]
   total_stops: number
-  validating_airlines: string[]
-  bookable_seats: number
-  instant_ticketing_required: boolean
-  last_ticketing_date: string
-  fare_type: string
+  bookable_seats?: number
+  instant_ticketing_required?: boolean
+  fare_type?: string
+  [key: string]: any  // Allow other properties
 }
 
 interface FlightData {
-  formatted: string
   options: FlightOption[]
+  status: string
+  disclaimer: string
 }
 
 interface TripItinerary {
@@ -87,6 +86,7 @@ interface ItineraryDisplayProps {
 export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
   const [expandedDays, setExpandedDays] = useState<number[]>([1])
   const [activeTab, setActiveTab] = useState<'itinerary' | 'summary' | 'costs'>('itinerary')
+  const [showAllFlights, setShowAllFlights] = useState<boolean>(false)
 
   const toggleDay = (day: number) => {
     setExpandedDays(prev => 
@@ -96,8 +96,28 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
     )
   }
 
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString()}`
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    // Handle invalid or undefined values safely
+    if (amount === null || amount === undefined) {
+      return '₹0';
+    }
+    
+    // Convert string to number if needed
+    let numAmount: number;
+    if (typeof amount === 'string') {
+      // Remove non-numeric characters except decimal point
+      const cleanedAmount = amount.replace(/[^0-9.]/g, '');
+      numAmount = parseFloat(cleanedAmount);
+    } else {
+      numAmount = amount as number;
+    }
+    
+    // Final validation
+    if (isNaN(numAmount) || !isFinite(numAmount)) {
+      return '₹0';
+    }
+    // Round to whole number to avoid decimal issues
+    return `₹${Math.round(amount).toLocaleString()}`;
   }
 
   return (
@@ -311,93 +331,125 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
               <Plane className="h-5 w-5 mr-2 text-primary-600" />
               Flight Options
             </h3>
-            {itinerary.flights?.options && itinerary.flights.options.length > 0 ? (
+            {itinerary.flights?.options && Array.isArray(itinerary.flights.options) && itinerary.flights.options.length > 0 ? (
               <div className="space-y-4">
-                {itinerary.flights.options.slice(0, 3).map((flight, idx) => (
-                  <div key={flight.id || idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {flight.airlines.join(' + ')}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Duration: {flight.total_duration.replace('PT', '').replace('H', 'h ').replace('M', 'm').toLowerCase()}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {flight.total_stops === 0 ? 'Direct' : `${flight.total_stops} stop(s)`}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-green-600">
-                          {formatCurrency(flight.price_inr)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {flight.currency} {flight.price_original}
-                        </p>
-                        {flight.bookable_seats > 0 && (
-                          <p className="text-xs text-orange-600">
-                            {flight.bookable_seats} seats left
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {flight.segments.map((segment, segIdx) => (
-                        <div key={segIdx} className="text-sm border-l-2 border-blue-200 pl-3">
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900">{segment.flight_number}</p>
-                              <p className="text-gray-600">{segment.cabin} • {segment.aircraft}</p>
+                {/* Flight summary header */}
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Found {itinerary.flights.options.length} flight options
+                    </p>
+                    <p className="text-xs text-gray-500">Scroll to view all options</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 focus:outline-none">
+                      <span className="font-medium">Sort:</span> Cheapest
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Scroll indicator */}
+                <div className="flex items-center justify-center mb-2 text-xs text-gray-400">
+                  <ChevronDown className="h-3 w-3 animate-bounce" />
+                  <span className="mx-1">Scroll to see more</span>
+                  <ChevronDown className="h-3 w-3 animate-bounce" />
+                </div>
+                
+                {/* All Flights in a scrollable container */}
+                <div 
+                  className="max-h-[500px] overflow-y-auto pr-1"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#CBD5E0 transparent',
+                  }}
+                >
+                  <div className="space-y-3">
+                    {itinerary.flights.options.map((flight, idx) => (
+                      <div key={flight.id || idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="flex items-center">
+                              <span className="font-medium text-gray-900 mr-2">
+                                {Array.isArray(flight.airlines) ? flight.airlines.join(' + ') : 'Unknown Airline'}
+                              </span>
+                              {idx === 0 && (
+                                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                                  Best Value
+                                </span>
+                              )}
                             </div>
-                            <div className="flex-2 text-center">
-                              <p className="font-medium">
-                                {new Date(segment.departure_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(segment.arrival_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                              </p>
-                              <p className="text-gray-600">{segment.departure_airport} → {segment.arrival_airport}</p>
-                            </div>
-                            <div className="flex-1 text-right">
-                              <p className="text-xs text-gray-500">
-                                {segment.duration?.replace('PT', '').replace('H', 'h ').replace('M', 'm').toLowerCase()}
-                              </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-sm py-0.5 px-2 bg-blue-50 text-blue-700 rounded-full">
+                                {typeof flight.total_duration === 'string' ? flight.total_duration.replace('PT', '').replace('H', 'h ').replace('M', 'm').toLowerCase() : 'N/A'}
+                              </span>
+                              <span className="text-sm py-0.5 px-2 bg-gray-100 text-gray-700 rounded-full">
+                                {flight.total_stops === 0 ? 'Direct' : `${flight.total_stops || '?'} stop(s)`}
+                              </span>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <p className="font-medium text-green-600 text-lg">
+                              {formatCurrency(typeof flight.price_inr === 'number' ? flight.price_inr : 0)}
+                            </p>
+                            {flight.bookable_seats && flight.bookable_seats > 0 && (
+                              <p className="text-xs text-orange-600">
+                                {flight.bookable_seats} seats left
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                    
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Fare: {flight.fare_type}</span>
-                        {flight.instant_ticketing_required && (
-                          <span className="text-red-600">⚡ Instant ticketing required</span>
-                        )}
+                        
+                        {/* Segments in a clearer layout */}
+                        <div className="space-y-2 mt-3">
+                          {Array.isArray(flight.segments) ? flight.segments.map((segment, segIdx) => (
+                            <div key={segIdx} className="border-l-2 border-blue-200 pl-3 py-1">
+                              <div className="flex items-center mb-1">
+                                <span className="font-medium text-sm mr-2">{segment.flight_number || 'Flight'}</span>
+                                <span className="text-xs text-gray-500">{segment.cabin || 'Economy'}</span>
+                                {segment.aircraft && <span className="text-xs text-gray-500 ml-2">({segment.aircraft})</span>}
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm">
+                                  <span className="font-medium">{segment.departure_airport || 'DEP'}</span>
+                                  <span className="text-gray-500 ml-1">{String(segment.departure_time || 'N/A')}</span>
+                                </div>
+                                <div className="text-xs text-gray-400 mx-2">→</div>
+                                <div className="text-sm">
+                                  <span className="font-medium">{segment.arrival_airport || 'ARR'}</span>
+                                  <span className="text-gray-500 ml-1">{String(segment.arrival_time || 'N/A')}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )) : <div className="text-gray-500">No segment details available</div>}
+                          
+                          <div className="mt-2 pt-1 border-t border-gray-100 flex justify-between items-center">
+                            <span className="text-xs text-gray-500">{flight.fare_type}</span>
+                            {flight.instant_ticketing_required && (
+                              <span className="text-xs text-red-600">⚡ Instant</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-                
-                {itinerary.flights.options.length > 3 && (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">
-                      + {itinerary.flights.options.length - 3} more options available
-                    </p>
-                  </div>
-                )}
+                </div>
                 
                 {/* Pricing Disclaimer */}
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-xs text-yellow-800 font-medium">⚠️ Pricing Disclaimer</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Prices shown are from Google Flights via SerpAPI and may differ from actual booking sites. 
-                    Flight details (routes, times) are accurate. Always verify final price when booking.
-                  </p>
+                <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="mr-2 text-yellow-600">⚠️</div>
+                    <div>
+                      <p className="text-xs text-yellow-800 font-medium">
+                        Sample data for demonstration purposes only
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-gray-600">Real flight options will be displayed here</p>
-                <p className="text-xs text-gray-500 mt-1">Powered by Google Flights via SerpAPI</p>
+                <p className="text-gray-600">Flight options will be displayed here</p>
+                <p className="text-xs text-gray-500 mt-1">Currently showing sample data</p>
               </div>
             )}
           </div>
