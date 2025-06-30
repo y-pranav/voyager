@@ -21,8 +21,16 @@ class MongoDB:
             # Test the connection
             await self.client.admin.command('ping')
             
-            # Get database and collections
-            db_name = mongodb_uri.split('/')[-1] if '/' in mongodb_uri else 'tripplanner'
+            # Get database and collections - fix parsing to handle query parameters
+            if '/' in mongodb_uri:
+                db_part = mongodb_uri.split('/')[-1]
+                # Remove query parameters (everything after ?)
+                db_name = db_part.split('?')[0] if '?' in db_part else db_part
+                # Use default if empty
+                db_name = db_name if db_name else 'tripplanner'
+            else:
+                db_name = 'tripplanner'
+                
             self.database = self.client[db_name]
             self.trip_sessions = self.database.trip_sessions
             
