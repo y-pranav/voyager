@@ -854,49 +854,148 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Cost Breakdown
             </h3>
-            {itinerary.cost_breakdown ? (
-              <div className="space-y-3">
-                {Object.entries(itinerary.cost_breakdown).map(([category, cost]) => (
-                  <div key={category} className="flex justify-between items-center">
-                    <span className="text-gray-700 capitalize">
-                      {category.replace('_', ' ')}
-                    </span>
-                    <span className="font-medium">
-                      {formatCurrency(cost as number)}
-                    </span>
+            {(() => {
+              // Calculate proper cost breakdown with correct math
+              const flightsCost = itinerary.flights?.options?.[0]?.price_inr || (itinerary.total_cost * 0.3);
+              const accommodationCost = itinerary.hotels?.options?.[0]?.total_price || (itinerary.total_cost * 0.4);
+              const activitiesCost = itinerary.total_cost * 0.15;
+              const mealsCost = itinerary.total_cost * 0.15;
+              
+              const calculatedTotal = flightsCost + accommodationCost + activitiesCost + mealsCost;
+              
+              const costBreakdown = [
+                { category: 'Flights', cost: flightsCost },
+                { category: 'Accommodation', cost: accommodationCost },
+                { category: 'Activities', cost: activitiesCost },
+                { category: 'Meals', cost: mealsCost }
+              ];
+              
+              return (
+                <div className="space-y-4">
+                  {costBreakdown.map(({ category, cost }) => (
+                    <div key={category} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-gray-700 font-medium">{category}</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatCurrency(cost)}
+                      </span>
+                    </div>
+                  ))}
+                  
+                  <div className="border-t-2 border-gray-200 pt-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-gray-900">Total</span>
+                      <span className="text-xl font-bold text-primary-600">
+                        {formatCurrency(calculatedTotal)}
+                      </span>
+                    </div>
                   </div>
-                ))}
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex justify-between items-center font-semibold text-lg">
-                    <span>Total</span>
-                    <span className="text-primary-600">
-                      {formatCurrency(itinerary.total_cost)}
-                    </span>
+                  
+                  {/* Show breakdown percentages */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Cost Distribution</h4>
+                    <div className="space-y-2">
+                      {costBreakdown.map(({ category, cost }) => {
+                        const percentage = ((cost / calculatedTotal) * 100);
+                        return (
+                          <div key={category} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{category}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-primary-500 h-2 rounded-full" 
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                              <span className="font-medium text-gray-700 w-10 text-right">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-gray-600">Cost breakdown will be calculated based on your itinerary.</p>
-            )}
+              );
+            })()}
           </div>
 
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Daily Budget
             </h3>
-            <div className="space-y-3">
-              <div className="p-4 bg-primary-50 rounded-lg">
-                <p className="text-sm text-primary-700 mb-1">Average per day</p>
-                <p className="text-2xl font-bold text-primary-900">
-                  {formatCurrency(Math.round(itinerary.total_cost / itinerary.total_days))}
-                </p>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p>• Includes accommodation, meals, and activities</p>
-                <p>• Excludes shopping and personal expenses</p>
-                <p>• Prices may vary based on season and availability</p>
-              </div>
-            </div>
+            {(() => {
+              // Calculate daily costs from the itinerary
+              const totalDailyCosts = itinerary.daily_itinerary?.reduce((sum, day) => sum + (day.estimated_cost || 0), 0) || 0;
+              const averageDailyCost = totalDailyCosts / (itinerary.total_days || 1);
+              const flightsCost = itinerary.flights?.options?.[0]?.price_inr || (itinerary.total_cost * 0.3);
+              const accommodationCost = itinerary.hotels?.options?.[0]?.total_price || (itinerary.total_cost * 0.4);
+              const calculatedTotal = flightsCost + accommodationCost + totalDailyCosts;
+              
+              return (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-200">
+                    <p className="text-sm text-primary-700 mb-1">Average per day</p>
+                    <p className="text-3xl font-bold text-primary-900">
+                      {formatCurrency(averageDailyCost)}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                      <p className="text-xs text-green-700 mb-1">Total Trip Cost</p>
+                      <p className="text-lg font-semibold text-green-800">
+                        {formatCurrency(calculatedTotal)}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-blue-700 mb-1">Daily Activities</p>
+                      <p className="text-lg font-semibold text-blue-800">
+                        {formatCurrency(averageDailyCost)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p className="flex items-center">
+                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                      Includes accommodation, meals, and activities
+                    </p>
+                    <p className="flex items-center">
+                      <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                      Excludes shopping and personal expenses
+                    </p>
+                    <p className="flex items-center">
+                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                      Prices may vary based on season and availability
+                    </p>
+                  </div>
+                  
+                  {/* Budget vs Actual */}
+                  {itinerary.total_cost && (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Budget Analysis</h4>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Original Budget:</span>
+                        <span className="font-medium">{formatCurrency(itinerary.total_cost)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Calculated Cost:</span>
+                        <span className="font-medium">{formatCurrency(calculatedTotal)}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-200">
+                        <span className="text-sm font-medium text-gray-700">
+                          {calculatedTotal <= itinerary.total_cost ? 'Under Budget:' : 'Over Budget:'}
+                        </span>
+                        <span className={`font-semibold ${calculatedTotal <= itinerary.total_cost ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(Math.abs(itinerary.total_cost - calculatedTotal))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
