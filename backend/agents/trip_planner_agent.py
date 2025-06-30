@@ -935,7 +935,7 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                         "type": "transportation"
                     },
                     {
-                        "name": f"Check-in at {selected_hotel['name'] if selected_hotel else 'hotel'}",
+                        "name": f"Check-in at {selected_hotel.get('name', 'hotel') if selected_hotel else 'hotel'}",
                         "description": f"Check-in and refresh after your journey.",
                         "time": "14:00",
                         "duration": "1 hour",
@@ -976,7 +976,7 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                         "type": "leisure"
                     },
                     {
-                        "name": f"Check-out from {selected_hotel['name'] if selected_hotel else 'hotel'}",
+                        "name": f"Check-out from {selected_hotel.get('name', 'hotel') if selected_hotel else 'hotel'}",
                         "description": "Check-out and store luggage if needed.",
                         "time": "11:00",
                         "duration": "1 hour",
@@ -1006,7 +1006,7 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                         "name": "Breakfast at Hotel",
                         "description": "Final breakfast at your accommodation.",
                         "time": "08:00",
-                        "restaurant": f"{selected_hotel['name'] if selected_hotel else 'hotel'} Restaurant",
+                        "restaurant": f"{selected_hotel.get('name', 'hotel') if selected_hotel else 'hotel'} Restaurant",
                         "cuisine": "Breakfast",
                         "cost": 500,
                         "type": "breakfast"
@@ -1066,7 +1066,7 @@ Make sure all costs fit within the budget of ₹{request.budget:,.0f}.
                         "name": "Breakfast at Hotel",
                         "description": "Start your day with a nutritious breakfast.",
                         "time": "08:00",
-                        "restaurant": f"{selected_hotel['name'] if selected_hotel else 'hotel'} Restaurant",
+                        "restaurant": f"{selected_hotel.get('name', 'hotel') if selected_hotel else 'hotel'} Restaurant",
                         "cuisine": "Breakfast",
                         "cost": 500,
                         "type": "breakfast"
