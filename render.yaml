@@ -10,7 +10,11 @@ services:
         value: 10000
       - key: GOOGLE_API_KEY
         sync: false
-      - key: MONGODB_URL
+      - key: MONGODB_URI
         sync: false
-      - key: SERPAPI_KEY
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: AMADEUS_API_KEY
+        sync: false
+      - key: AMADEUS_API_SECRET
         sync: false

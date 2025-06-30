@@ -27,11 +27,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000", 
         "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://your-actual-vercel-domain.vercel.app"  # Replace with your actual Vercel URL
+        "https://voyager-9wc.vercel.app"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
