@@ -151,6 +151,44 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
     return `₹${Math.round(numAmount).toLocaleString()}`;
   }
 
+  // Helper function to group activities by time periods
+  const groupActivitiesByTimePeriod = (activities: any[]) => {
+    const groups: { [key: string]: any[] } = {
+      morning: [],
+      afternoon: [],
+      evening: [],
+      other: []
+    }
+    
+    activities.forEach(activity => {
+      const time = activity.time || ''
+      const hour = parseInt(time.split(':')[0]) || 0
+      
+      if (hour >= 6 && hour < 12) {
+        groups.morning.push(activity)
+      } else if (hour >= 12 && hour < 17) {
+        groups.afternoon.push(activity)
+      } else if (hour >= 17 && hour < 22) {
+        groups.evening.push(activity)
+      } else {
+        groups.other.push(activity)
+      }
+    })
+    
+    return groups
+  }
+
+  // Helper function to get time period label and color
+  const getTimePeriodInfo = (period: string) => {
+    const info = {
+      morning: { label: 'Morning', color: 'bg-yellow-100 text-yellow-800', icon: '🌅' },
+      afternoon: { label: 'Afternoon', color: 'bg-blue-100 text-blue-800', icon: '☀️' },
+      evening: { label: 'Evening', color: 'bg-purple-100 text-purple-800', icon: '🌙' },
+      other: { label: 'Other', color: 'bg-gray-100 text-gray-800', icon: '⏰' }
+    }
+    return info[period as keyof typeof info] || info.other
+  }
+
   // Hotel display component
   const HotelDisplay = ({ hotels }: { hotels: HotelData }) => {
     const [showAll, setShowAll] = useState(false);
@@ -310,8 +348,8 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -361,7 +399,7 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
           <nav className="-mb-px flex space-x-8">
             {[
               { id: 'itinerary', label: 'Day-by-Day Itinerary', icon: Calendar },
-              { id: 'summary', label: 'Trip Summary', icon: MapPin },
+              { id: 'summary', label: 'Booking Details', icon: MapPin },
               { id: 'costs', label: 'Cost Breakdown', icon: DollarSign }
             ].map(tab => {
               const IconComponent = tab.icon
@@ -386,11 +424,11 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
 
       {/* Tab Content */}
       {activeTab === 'itinerary' && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {itinerary.daily_itinerary?.map((day, index) => (
-            <div key={day.day} className="card">
+            <div key={day.day} className="card border-l-4 border-l-primary-500">
               <div 
-                className="flex items-center justify-between cursor-pointer"
+                className="flex items-center justify-between cursor-pointer group hover:bg-gray-50 -m-6 p-6 rounded-lg transition-colors"
                 onClick={() => toggleDay(day.day)}
               >
                 <div className="flex items-center">
@@ -401,15 +439,32 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
                     <h3 className="text-lg font-semibold text-gray-900">
                       Day {day.day} - {day.date}
                     </h3>
-                    <p className="text-gray-600">
-                      {day.activities?.length || 0} activities • {formatCurrency(day.estimated_cost)}
+                    <p className="text-gray-600 flex items-center flex-wrap gap-4">
+                      <span className="flex items-center">
+                        <Camera className="h-4 w-4 mr-1" />
+                        {day.activities?.length || 0} activities
+                      </span>
+                      <span className="flex items-center">
+                        <Utensils className="h-4 w-4 mr-1" />
+                        {day.meals?.length || 0} meals
+                      </span>
+                      <span className="flex items-center">
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        {formatCurrency(day.estimated_cost)}
+                      </span>
                     </p>
                   </div>
                 </div>
                 {expandedDays.includes(day.day) ? (
-                  <ChevronUp className="h-5 w-5 text-gray-400" />
+                  <div className="flex items-center text-primary-600">
+                    <span className="text-sm mr-2">Hide details</span>
+                    <ChevronUp className="h-5 w-5" />
+                  </div>
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                  <div className="flex items-center text-gray-500 group-hover:text-primary-600">
+                    <span className="text-sm mr-2">View details</span>
+                    <ChevronDown className="h-5 w-5" />
+                  </div>
                 )}
               </div>
 
@@ -417,64 +472,81 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
                 <div className="mt-6 space-y-6">
                   {/* Activities */}
                   {day.activities && day.activities.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <Camera className="h-4 w-4 mr-2 text-primary-600" />
-                        Activities
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-xl border border-emerald-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <Camera className="h-5 w-5 mr-2 text-emerald-600" />
+                        Activities & Experiences
                       </h4>
-                      <div className="space-y-3">
-                        {day.activities.map((activity, idx) => (
-                          <div key={idx} className="flex items-start p-3 bg-gray-50 rounded-lg">
-                            <div className="w-16 text-sm font-medium text-gray-600 flex-shrink-0">
-                              {activity.time}
+                      
+                      {/* Grouped activities by time period */}
+                      {Object.entries(groupActivitiesByTimePeriod(day.activities)).map(([period, activities]) => {
+                        const { label, color, icon } = getTimePeriodInfo(period)
+                        
+                        if (activities.length === 0) return null;
+                        
+                        return (
+                          <div key={period} className="mb-6 last:mb-0">
+                            <div className={`inline-flex items-center text-xs font-semibold ${color} rounded-full py-2 px-4 mb-4 shadow-sm`}>
+                              <span className="mr-2 text-sm">{icon}</span>
+                              <span>{label}</span>
                             </div>
-                            <div className="flex-grow">
-                              <h5 className="font-medium text-gray-900">{activity.name}</h5>
-                              {activity.description && (
-                                <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                              )}
-                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                {activity.duration && (
-                                  <span className="flex items-center">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {activity.duration}
-                                  </span>
-                                )}
-                                {activity.cost && (
-                                  <span className="flex items-center">
-                                    <DollarSign className="h-3 w-3 mr-1" />
-                                    {formatCurrency(activity.cost)}
-                                  </span>
-                                )}
-                                {activity.location && (
-                                  <span className="flex items-center">
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    {activity.location}
-                                  </span>
-                                )}
-                              </div>
+                            
+                            <div className="space-y-4">
+                              {activities.map((activity, idx) => (
+                                <div key={idx} className="flex items-start p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow gap-4">
+                                  <div className="w-20 text-sm font-semibold text-primary-600 flex-shrink-0 bg-primary-50 px-2 py-1 rounded">
+                                    {activity.time}
+                                  </div>
+                                  <div className="flex-grow min-w-0">
+                                    <h5 className="font-medium text-gray-900">{activity.name}</h5>
+                                    {activity.description && (
+                                      <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                      {activity.duration && (
+                                        <span className="flex items-center">
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          {activity.duration}
+                                        </span>
+                                      )}
+                                      {activity.cost && (
+                                        <span className="flex items-center">
+                                          <DollarSign className="h-3 w-3 mr-1" />
+                                          {formatCurrency(activity.cost)}
+                                        </span>
+                                      )}
+                                      {activity.location && (
+                                        <span className="flex items-center">
+                                          <MapPin className="h-3 w-3 mr-1" />
+                                          {activity.location}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        )
+                      })}
                     </div>
                   )}
 
                   {/* Meals */}
                   {day.meals && day.meals.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <Utensils className="h-4 w-4 mr-2 text-primary-600" />
-                        Dining
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <Utensils className="h-5 w-5 mr-2 text-orange-600" />
+                        Dining Experiences
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {day.meals.map((meal, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center">
-                              <span className="w-16 text-sm font-medium text-gray-600">
+                          <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                            <div className="flex items-center gap-4 flex-grow min-w-0">
+                              <span className="w-20 text-sm font-semibold text-orange-600 flex-shrink-0 bg-orange-50 px-2 py-1 rounded">
                                 {meal.time}
                               </span>
-                              <div>
+                              <div className="min-w-0">
                                 <span className="font-medium text-gray-900">{meal.name}</span>
                                 {meal.cuisine && (
                                   <span className="text-sm text-gray-600 ml-2">• {meal.cuisine}</span>
@@ -494,17 +566,57 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
 
                   {/* Accommodation */}
                   {day.accommodation && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <Hotel className="h-4 w-4 mr-2 text-primary-600" />
-                        Accommodation
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <Hotel className="h-5 w-5 mr-2 text-indigo-600" />
+                        Your Stay
                       </h4>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="font-medium text-gray-900">
-                          {day.accommodation.name || 'Hotel Stay'}
-                        </p>
-                        {day.accommodation.location && (
-                          <p className="text-sm text-gray-600">{day.accommodation.location}</p>
+                      <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900 text-lg">
+                              {day.accommodation.name || 'Hotel Stay'}
+                            </p>
+                            {day.accommodation.location && (
+                              <p className="text-sm text-gray-600 mt-1 flex items-center">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                {day.accommodation.location}
+                              </p>
+                            )}
+                            {day.accommodation.rating && (
+                              <div className="flex items-center mt-2">
+                                <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {day.accommodation.rating}/5
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {day.accommodation.price_per_night && (
+                            <div className="text-right">
+                              <p className="text-sm text-gray-500">per night</p>
+                              <p className="font-semibold text-lg text-green-600">
+                                {formatCurrency(day.accommodation.price_per_night)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {day.accommodation.amenities && day.accommodation.amenities.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex flex-wrap gap-2">
+                              {day.accommodation.amenities.slice(0, 4).map((amenity: string, idx: number) => (
+                                <span key={idx} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full">
+                                  {amenity}
+                                </span>
+                              ))}
+                              {day.accommodation.amenities.length > 4 && (
+                                <span className="text-xs text-gray-500">
+                                  +{day.accommodation.amenities.length - 4} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
