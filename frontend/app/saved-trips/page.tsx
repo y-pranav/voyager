@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { MapPin, Calendar, DollarSign, Heart, Eye, Trash2, Share2 } from 'lucide-react'
+import { ToastContainer, useToast } from '../components/Toast'
 
 interface SavedTrip {
   id: string
@@ -20,6 +21,9 @@ export default function SavedTripsPage() {
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Toast system
+  const { toasts, removeToast, success, error: showError, info } = useToast()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -60,10 +64,10 @@ export default function SavedTripsPage() {
 
       // Remove from local state
       setSavedTrips(trips => trips.filter(trip => trip.id !== tripId))
-      alert('Trip deleted successfully!')
+      success('Trip Deleted', 'Trip deleted successfully!')
     } catch (err) {
       console.error('Error deleting trip:', err)
-      alert('Failed to delete trip')
+      showError('Delete Failed', 'Failed to delete trip')
     }
   }
 
@@ -244,7 +248,7 @@ export default function SavedTripsPage() {
                       <button
                         onClick={() => {
                           // TODO: Implement share saved trip
-                          alert('Share functionality coming soon!')
+                          info('Coming Soon', 'Share functionality coming soon!')
                         }}
                         className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Share trip"
@@ -274,6 +278,9 @@ export default function SavedTripsPage() {
           <p>© 2024 AI Trip Planner. Powered by advanced AI agents and LangChain.</p>
         </div>
       </footer>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }

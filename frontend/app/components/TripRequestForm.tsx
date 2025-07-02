@@ -19,6 +19,7 @@ interface TripRequest {
 
 interface TripRequestFormProps {
   onSubmit: (request: TripRequest) => void
+  onError?: (title: string, message: string) => void
 }
 
 const INTERESTS_OPTIONS = [
@@ -49,7 +50,7 @@ const TRANSPORT_MODES = [
   { value: 'car', label: 'Car' }
 ]
 
-export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
+export default function TripRequestForm({ onSubmit, onError }: TripRequestFormProps) {
   const [formData, setFormData] = useState<TripRequest>({
     destination: '',
     source: '',
@@ -79,17 +80,17 @@ export default function TripRequestForm({ onSubmit }: TripRequestFormProps) {
     e.preventDefault()
     
     if (!formData.destination.trim()) {
-      alert('Please enter a destination')
+      onError?.('Missing Destination', 'Please enter a destination')
       return
     }
 
     if (!formData.source.trim()) {
-      alert('Please enter your departure city/airport')
+      onError?.('Missing Source', 'Please enter your departure city/airport')
       return
     }
 
     if (formData.interests.length === 0) {
-      alert('Please select at least one interest')
+      onError?.('Missing Interests', 'Please select at least one interest')
       return
     }
 

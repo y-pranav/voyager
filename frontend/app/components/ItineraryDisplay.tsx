@@ -6,6 +6,8 @@ import {
   Camera, Utensils, Clock, Star, ChevronDown, ChevronUp,
   Download, Share2, Heart
 } from 'lucide-react'
+import { ToastContainer, useToast } from './Toast'
+import { Modal } from './Modal'
 
 // Flight-related interfaces
 interface FlightSegment {
@@ -121,95 +123,175 @@ export default function ItineraryDisplay({ itinerary, sessionId }: ItineraryDisp
   const [showAllFlights, setShowAllFlights] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({})
 
+  // Toast system
+  const { toasts, removeToast, success, error, info, warning } = useToast()
+
+  // Modal state
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    content: string;
+    type: 'input' | 'confirm';
+    inputValue?: string;
+    onConfirm?: (value?: string) => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    content: '',
+    type: 'confirm'
+  })
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  // Toast helpers
+  const showToast = (title: string, message?: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    switch (type) {
+      case 'success':
+        success(title, message)
+        break
+      case 'error':
+        error(title, message)
+        break
+      case 'warning':
+        warning(title, message)
+        break
+      default:
+        info(title, message)
+        break
+    }
+  }
+
+  // Modal helpers
+  const showInputModal = (title: string, content: string, onConfirm: (value: string) => void, onCancel?: () => void) => {
+    setModal({
+      isOpen: true,
+      title,
+      content,
+      type: 'input',
+      inputValue: '',
+      onConfirm: (value?: string) => onConfirm(value || ''),
+      onCancel
+    })
+  }
+
+  const showConfirmModal = (title: string, content: string, onConfirm: () => void, onCancel?: () => void) => {
+    setModal({
+      isOpen: true,
+      title,
+      content,
+      type: 'confirm',
+      onConfirm: () => onConfirm(),
+      onCancel
+    })
+  }
+
+  const closeModal = () => {
+    setModal(prev => ({ ...prev, isOpen: false }))
+  }
 
   const handleSaveTrip = async () => {
     if (!sessionId) {
-      alert('Session not found. Cannot save trip.')
+      showToast('Session Error', 'Session not found. Cannot save trip.', 'error')
       return
     }
 
-    setIsLoading(prev => ({ ...prev, save: true }))
+    // Show input modal for trip title
+    showInputModal(
+      'Save Trip',
+      'Enter a title for your saved trip (optional):',
+      async (title) => {
+        closeModal()
+        setIsLoading(prev => ({ ...prev, save: true }))
 
-    try {
-      const title = prompt('Enter a title for your saved trip (optional):') || undefined
-      const response = await fetch(`${API_URL}/api/save-trip`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          title: title,
-          tags: [],
-          notes: null
-        })
-      })
+        try {
+          const response = await fetch(`${API_URL}/api/save-trip`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              title: title || undefined,
+              tags: [],
+              notes: null
+            })
+          })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to save trip')
-      }
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.detail || 'Failed to save trip')
+          }
 
-      const result = await response.json()
-      alert('Trip saved successfully! 🎉')
-      
-    } catch (error) {
-      console.error('Error saving trip:', error)
-      alert(`Failed to save trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsLoading(prev => ({ ...prev, save: false }))
-    }
+          const result = await response.json()
+          showToast('Trip Saved!', '🎉 Your trip has been saved successfully', 'success')
+          
+        } catch (error) {
+          console.error('Error saving trip:', error)
+          showToast('Save Failed', `${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+        } finally {
+          setIsLoading(prev => ({ ...prev, save: false }))
+        }
+      },
+      () => closeModal() // onCancel
+    )
   }
 
   const handleShareTrip = async () => {
     if (!sessionId) {
-      alert('Session not found. Cannot share trip.')
+      showToast('Session Error', 'Session not found. Cannot share trip.', 'error')
       return
     }
 
-    setIsLoading(prev => ({ ...prev, share: true }))
+    // Show input modal for trip title
+    showInputModal(
+      'Share Trip',
+      'Enter a title for your shared trip (optional):',
+      async (title) => {
+        closeModal()
+        setIsLoading(prev => ({ ...prev, share: true }))
 
-    try {
-      const title = prompt('Enter a title for your shared trip (optional):') || undefined
-      const response = await fetch(`${API_URL}/api/share-trip`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          title: title,
-          expires_in_days: 30
-        })
-      })
+        try {
+          const response = await fetch(`${API_URL}/api/share-trip`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              title: title || undefined,
+              expires_in_days: 30
+            })
+          })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to share trip')
-      }
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.detail || 'Failed to share trip')
+          }
 
-      const result = await response.json()
-      
-      // Copy to clipboard
-      if (navigator.clipboard && result.data?.share_url) {
-        await navigator.clipboard.writeText(result.data.share_url)
-        alert('✅ Shareable link created and copied to clipboard!\n\n' + result.data.share_url)
-      } else {
-        alert('✅ Shareable link created:\n\n' + (result.data?.share_url || 'Link generation failed'))
-      }
-      
-    } catch (error) {
-      console.error('Error sharing trip:', error)
-      alert(`Failed to share trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsLoading(prev => ({ ...prev, share: false }))
-    }
+          const result = await response.json()
+          
+          // Copy to clipboard
+          if (navigator.clipboard && result.data?.share_url) {
+            await navigator.clipboard.writeText(result.data.share_url)
+            showToast('Link Copied!', '✅ Shareable link created and copied to clipboard', 'success')
+          } else {
+            showToast('Link Created', '✅ Shareable link has been created', 'success')
+          }
+          
+        } catch (error) {
+          console.error('Error sharing trip:', error)
+          showToast('Share Failed', `${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+        } finally {
+          setIsLoading(prev => ({ ...prev, share: false }))
+        }
+      },
+      () => closeModal() // onCancel
+    )
   }
 
   const handleDownloadPDF = async () => {
     if (!sessionId) {
-      alert('Session not found. Cannot download PDF.')
+      showToast('Session Error', 'Session not found. Cannot download PDF.', 'error')
       return
     }
 
@@ -240,11 +322,11 @@ export default function ItineraryDisplay({ itinerary, sessionId }: ItineraryDisp
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      alert('PDF downloaded successfully! 📄')
+      showToast('PDF Downloaded!', '📄 Your trip itinerary has been downloaded successfully', 'success')
       
     } catch (error) {
       console.error('Error downloading PDF:', error)
-      alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      showToast('Download Failed', `${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
     } finally {
       setIsLoading(prev => ({ ...prev, pdf: false }))
     }
@@ -1142,6 +1224,53 @@ export default function ItineraryDisplay({ itinerary, sessionId }: ItineraryDisp
           </div>
         </div>
       )}
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Modal dialog */}
+      <Modal
+        isOpen={modal.isOpen}
+        title={modal.title}
+        onClose={closeModal}
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">{modal.content}</p>
+          
+          {modal.type === 'input' && (
+            <input
+              type="text"
+              value={modal.inputValue || ''}
+              onChange={(e) => setModal(prev => ({ ...prev, inputValue: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter title..."
+              autoFocus
+            />
+          )}
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                if (modal.onCancel) modal.onCancel()
+                else closeModal()
+              }}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (modal.onConfirm) {
+                  modal.onConfirm(modal.inputValue)
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              {modal.type === 'input' ? 'Save' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

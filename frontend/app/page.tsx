@@ -4,6 +4,7 @@ import { useState } from 'react'
 import TripRequestForm from './components/TripRequestForm'
 import ProgressTracker from './components/ProgressTracker'
 import ItineraryDisplay from './components/ItineraryDisplay'
+import { ToastContainer, useToast } from './components/Toast'
 import { Plane, MapPin, Sparkles, Heart } from 'lucide-react'
 
 export interface TripRequest {
@@ -38,6 +39,9 @@ export default function Home() {
   const [itinerary, setItinerary] = useState<TripItinerary | null>(null)
   const [progress, setProgress] = useState({ percentage: 0, currentStep: '', details: '' })
 
+  // Toast system
+  const { toasts, removeToast, error } = useToast()
+
   const handleTripSubmit = async (tripRequest: TripRequest) => {
     try {
       setCurrentStep('planning')
@@ -63,9 +67,9 @@ export default function Home() {
       // Poll for progress updates
       pollProgress(result.session_id)
       
-    } catch (error) {
-      console.error('Error submitting trip request:', error)
-      alert('Failed to submit trip request. Please try again.')
+    } catch (err) {
+      console.error('Error submitting trip request:', err)
+      error('Request Failed', 'Failed to submit trip request. Please try again.')
       setCurrentStep('form')
     }
   }
@@ -112,9 +116,9 @@ export default function Home() {
         attempts++
         setTimeout(poll, 5000) // Poll every 5 seconds
         
-      } catch (error) {
-        console.error('Error polling progress:', error)
-        alert('Error during trip planning. Please try again.')
+      } catch (err) {
+        console.error('Error polling progress:', err)
+        error('Planning Failed', 'Error during trip planning. Please try again.')
         setCurrentStep('form')
       }
     }
@@ -182,7 +186,7 @@ export default function Home() {
                 with flights, hotels, activities, and dining recommendations.
               </p>
             </div>
-            <TripRequestForm onSubmit={handleTripSubmit} />
+            <TripRequestForm onSubmit={handleTripSubmit} onError={error} />
           </div>
         )}
 
@@ -211,6 +215,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
   )
 }
