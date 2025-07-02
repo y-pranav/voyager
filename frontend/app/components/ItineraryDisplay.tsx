@@ -112,12 +112,143 @@ interface Meal {
 
 interface ItineraryDisplayProps {
   itinerary: TripItinerary
+  sessionId?: string | null
 }
 
-export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
+export default function ItineraryDisplay({ itinerary, sessionId }: ItineraryDisplayProps) {
   const [expandedDays, setExpandedDays] = useState<number[]>([1])
   const [activeTab, setActiveTab] = useState<'itinerary' | 'summary' | 'costs'>('itinerary')
   const [showAllFlights, setShowAllFlights] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({})
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  const handleSaveTrip = async () => {
+    if (!sessionId) {
+      alert('Session not found. Cannot save trip.')
+      return
+    }
+
+    setIsLoading(prev => ({ ...prev, save: true }))
+
+    try {
+      const title = prompt('Enter a title for your saved trip (optional):') || undefined
+      const response = await fetch(`${API_URL}/api/save-trip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          title: title,
+          tags: [],
+          notes: null
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to save trip')
+      }
+
+      const result = await response.json()
+      alert('Trip saved successfully! 🎉')
+      
+    } catch (error) {
+      console.error('Error saving trip:', error)
+      alert(`Failed to save trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(prev => ({ ...prev, save: false }))
+    }
+  }
+
+  const handleShareTrip = async () => {
+    if (!sessionId) {
+      alert('Session not found. Cannot share trip.')
+      return
+    }
+
+    setIsLoading(prev => ({ ...prev, share: true }))
+
+    try {
+      const title = prompt('Enter a title for your shared trip (optional):') || undefined
+      const response = await fetch(`${API_URL}/api/share-trip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          title: title,
+          expires_in_days: 30
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to share trip')
+      }
+
+      const result = await response.json()
+      
+      // Copy to clipboard
+      if (navigator.clipboard && result.data?.share_url) {
+        await navigator.clipboard.writeText(result.data.share_url)
+        alert('✅ Shareable link created and copied to clipboard!\n\n' + result.data.share_url)
+      } else {
+        alert('✅ Shareable link created:\n\n' + (result.data?.share_url || 'Link generation failed'))
+      }
+      
+    } catch (error) {
+      console.error('Error sharing trip:', error)
+      alert(`Failed to share trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(prev => ({ ...prev, share: false }))
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!sessionId) {
+      alert('Session not found. Cannot download PDF.')
+      return
+    }
+
+    setIsLoading(prev => ({ ...prev, pdf: true }))
+
+    try {
+      const response = await fetch(`${API_URL}/api/download-pdf/${sessionId}`)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to generate PDF')
+      }
+
+      // Get filename from response headers
+      const contentDisposition = response.headers.get('Content-Disposition') || ''
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+      const filename = filenameMatch ? filenameMatch[1] : `trip_itinerary_${itinerary.destination.replace(/\s+/g, '_').toLowerCase()}.pdf`
+
+      // Create blob and download
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      alert('PDF downloaded successfully! 📄')
+      
+    } catch (error) {
+      console.error('Error downloading PDF:', error)
+      alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(prev => ({ ...prev, pdf: false }))
+    }
+  }
 
   const toggleDay = (day: number) => {
     setExpandedDays(prev => 
@@ -377,17 +508,29 @@ export default function ItineraryDisplay({ itinerary }: ItineraryDisplayProps) {
           </div>
           
           <div className="flex gap-3 mt-4 lg:mt-0">
-            <button className="btn-secondary flex items-center">
+            <button 
+              onClick={handleSaveTrip}
+              disabled={isLoading.save}
+              className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Heart className="h-4 w-4 mr-2" />
-              Save Trip
+              {isLoading.save ? 'Saving...' : 'Save Trip'}
             </button>
-            <button className="btn-secondary flex items-center">
+            <button 
+              onClick={handleShareTrip}
+              disabled={isLoading.share}
+              className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Share2 className="h-4 w-4 mr-2" />
-              Share
+              {isLoading.share ? 'Sharing...' : 'Share'}
             </button>
-            <button className="btn-primary flex items-center">
+            <button 
+              onClick={handleDownloadPDF}
+              disabled={isLoading.pdf}
+              className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              {isLoading.pdf ? 'Generating...' : 'Download PDF'}
             </button>
           </div>
         </div>

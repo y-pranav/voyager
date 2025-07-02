@@ -4,7 +4,7 @@ import { useState } from 'react'
 import TripRequestForm from './components/TripRequestForm'
 import ProgressTracker from './components/ProgressTracker'
 import ItineraryDisplay from './components/ItineraryDisplay'
-import { Plane, MapPin, Sparkles } from 'lucide-react'
+import { Plane, MapPin, Sparkles, Heart } from 'lucide-react'
 
 export interface TripRequest {
   destination: string
@@ -146,15 +146,25 @@ export default function Home() {
                 <p className="text-sm text-gray-600">Intelligent travel planning with AI agents</p>
               </div>
             </div>
-            {currentStep !== 'form' && (
-              <button
-                onClick={resetForm}
-                className="btn-secondary flex items-center space-x-2"
+            <div className="flex items-center space-x-4">
+              <a 
+                href="/saved-trips"
+                className="text-gray-600 hover:text-blue-600 font-medium transition-colors flex items-center"
               >
-                <MapPin className="h-4 w-4" />
-                <span>Plan New Trip</span>
-              </button>
-            )}
+                <Heart className="h-4 w-4 mr-1" />
+                Saved Trips
+              </a>
+              
+              {currentStep !== 'form' && (
+                <button
+                  onClick={resetForm}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span>Plan New Trip</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -188,7 +198,7 @@ export default function Home() {
 
         {currentStep === 'results' && itinerary && (
           <div className="animate-fade-in">
-            <ItineraryDisplay itinerary={itinerary} />
+            <ItineraryDisplay itinerary={itinerary} sessionId={sessionId} />
           </div>
         )}
       </div>
