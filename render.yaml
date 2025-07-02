@@ -18,3 +18,5 @@ services:
         sync: false
       - key: AMADEUS_API_SECRET
         sync: false
+      - key: FRONTEND_URL
+        value: https://voyager-9wc.vercel.app
