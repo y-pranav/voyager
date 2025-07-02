@@ -4,7 +4,8 @@ import { useState } from 'react'
 import TripRequestForm from './components/TripRequestForm'
 import ProgressTracker from './components/ProgressTracker'
 import ItineraryDisplay from './components/ItineraryDisplay'
-import { Plane, MapPin, Sparkles } from 'lucide-react'
+import { ToastContainer, useToast } from './components/Toast'
+import { Plane, MapPin, Sparkles, Heart } from 'lucide-react'
 
 export interface TripRequest {
   destination: string
@@ -38,6 +39,9 @@ export default function Home() {
   const [itinerary, setItinerary] = useState<TripItinerary | null>(null)
   const [progress, setProgress] = useState({ percentage: 0, currentStep: '', details: '' })
 
+  // Toast system
+  const { toasts, removeToast, error } = useToast()
+
   const handleTripSubmit = async (tripRequest: TripRequest) => {
     try {
       setCurrentStep('planning')
@@ -63,9 +67,9 @@ export default function Home() {
       // Poll for progress updates
       pollProgress(result.session_id)
       
-    } catch (error) {
-      console.error('Error submitting trip request:', error)
-      alert('Failed to submit trip request. Please try again.')
+    } catch (err) {
+      console.error('Error submitting trip request:', err)
+      error('Request Failed', 'Failed to submit trip request. Please try again.')
       setCurrentStep('form')
     }
   }
@@ -112,9 +116,9 @@ export default function Home() {
         attempts++
         setTimeout(poll, 5000) // Poll every 5 seconds
         
-      } catch (error) {
-        console.error('Error polling progress:', error)
-        alert('Error during trip planning. Please try again.')
+      } catch (err) {
+        console.error('Error polling progress:', err)
+        error('Planning Failed', 'Error during trip planning. Please try again.')
         setCurrentStep('form')
       }
     }
@@ -146,15 +150,25 @@ export default function Home() {
                 <p className="text-sm text-gray-600">Intelligent travel planning with AI agents</p>
               </div>
             </div>
-            {currentStep !== 'form' && (
-              <button
-                onClick={resetForm}
-                className="btn-secondary flex items-center space-x-2"
+            <div className="flex items-center space-x-4">
+              <a 
+                href="/saved-trips"
+                className="text-gray-600 hover:text-blue-600 font-medium transition-colors flex items-center"
               >
-                <MapPin className="h-4 w-4" />
-                <span>Plan New Trip</span>
-              </button>
-            )}
+                <Heart className="h-4 w-4 mr-1" />
+                Saved Trips
+              </a>
+              
+              {currentStep !== 'form' && (
+                <button
+                  onClick={resetForm}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span>Plan New Trip</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -172,7 +186,7 @@ export default function Home() {
                 with flights, hotels, activities, and dining recommendations.
               </p>
             </div>
-            <TripRequestForm onSubmit={handleTripSubmit} />
+            <TripRequestForm onSubmit={handleTripSubmit} onError={error} />
           </div>
         )}
 
@@ -188,7 +202,7 @@ export default function Home() {
 
         {currentStep === 'results' && itinerary && (
           <div className="animate-fade-in">
-            <ItineraryDisplay itinerary={itinerary} />
+            <ItineraryDisplay itinerary={itinerary} sessionId={sessionId} />
           </div>
         )}
       </div>
@@ -201,6 +215,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
   )
 }

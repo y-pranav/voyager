@@ -1,5 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 from datetime import datetime, timedelta
 import uuid
@@ -11,6 +11,8 @@ class MongoDB:
         self.client: Optional[AsyncIOMotorClient] = None
         self.database = None
         self.trip_sessions = None
+        self.saved_trips = None
+        self.shared_trips = None
         
     async def connect(self):
         """Connect to MongoDB"""
@@ -33,6 +35,8 @@ class MongoDB:
                 
             self.database = self.client[db_name]
             self.trip_sessions = self.database.trip_sessions
+            self.saved_trips = self.database.saved_trips
+            self.shared_trips = self.database.shared_trips
             
             # Create indexes
             await self._create_indexes()
@@ -64,6 +68,16 @@ class MongoDB:
                 ("status", 1),
                 ("created_at", -1)
             ])
+            
+            # Indexes for saved trips
+            await self.saved_trips.create_index("session_id")
+            await self.saved_trips.create_index("destination")
+            await self.saved_trips.create_index("saved_at")
+            
+            # Indexes for shared trips
+            await self.shared_trips.create_index("share_id", unique=True)
+            await self.shared_trips.create_index("session_id")
+            await self.shared_trips.create_index("expires_at")
             
             print("✅ Database indexes created")
             
@@ -281,3 +295,185 @@ class MongoDB:
         except Exception as e:
             print(f"❌ Error getting session stats: {e}")
             return {}
+
+    # === SAVED TRIPS METHODS ===
+    
+    async def save_trip(self, session_id: str, title: str, tags: List[str] = None, notes: str = None) -> Optional[str]:
+        """Save a trip to user's saved trips"""
+        try:
+            # Get the completed session
+            session = await self.get_trip_session(session_id)
+            if not session or session.get("status") != "completed":
+                return None
+            
+            itinerary = session.get("itinerary")
+            if not itinerary:
+                return None
+            
+            # Generate unique ID for saved trip
+            saved_trip_id = str(uuid.uuid4())
+            
+            # Create saved trip document
+            saved_trip = {
+                "id": saved_trip_id,
+                "session_id": session_id,
+                "title": title or f"Trip to {itinerary.get('destination', 'Unknown')}",
+                "destination": itinerary.get("destination", "Unknown"),
+                "total_days": itinerary.get("total_days", 0),
+                "total_cost": itinerary.get("total_cost", 0),
+                "currency": itinerary.get("currency", "INR"),
+                "itinerary": itinerary,
+                "saved_at": datetime.utcnow(),
+                "tags": tags or [],
+                "notes": notes
+            }
+            
+            result = await self.saved_trips.insert_one(saved_trip)
+            
+            if result.inserted_id:
+                print(f"✅ Saved trip: {saved_trip_id}")
+                return saved_trip_id
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error saving trip {session_id}: {e}")
+            return None
+    
+    async def get_saved_trips(self, limit: int = 20, skip: int = 0) -> List[Dict[str, Any]]:
+        """Get saved trips with pagination"""
+        try:
+            cursor = self.saved_trips.find({}).sort("saved_at", -1).skip(skip).limit(limit)
+            trips = []
+            async for trip in cursor:
+                # Remove MongoDB _id field
+                trip.pop("_id", None)
+                trips.append(trip)
+            
+            return trips
+            
+        except Exception as e:
+            print(f"❌ Error getting saved trips: {e}")
+            return []
+    
+    async def get_saved_trip(self, trip_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific saved trip"""
+        try:
+            trip = await self.saved_trips.find_one({"id": trip_id})
+            if trip:
+                trip.pop("_id", None)
+            return trip
+            
+        except Exception as e:
+            print(f"❌ Error getting saved trip {trip_id}: {e}")
+            return None
+    
+    async def delete_saved_trip(self, trip_id: str) -> bool:
+        """Delete a saved trip"""
+        try:
+            result = await self.saved_trips.delete_one({"id": trip_id})
+            return result.deleted_count > 0
+            
+        except Exception as e:
+            print(f"❌ Error deleting saved trip {trip_id}: {e}")
+            return False
+
+    # === SHARED TRIPS METHODS ===
+    
+    async def create_shared_trip(self, session_id: str, title: str = None, expires_in_days: int = 30) -> Optional[str]:
+        """Create a shareable trip link"""
+        try:
+            # Get the completed session
+            session = await self.get_trip_session(session_id)
+            if not session or session.get("status") != "completed":
+                return None
+            
+            itinerary = session.get("itinerary")
+            if not itinerary:
+                return None
+            
+            # Generate unique share ID
+            share_id = str(uuid.uuid4())
+            
+            # Calculate expiry date
+            expires_at = datetime.utcnow() + timedelta(days=expires_in_days) if expires_in_days else None
+            
+            # Create shared trip document
+            shared_trip = {
+                "share_id": share_id,
+                "session_id": session_id,
+                "title": title or f"Trip to {itinerary.get('destination', 'Unknown')}",
+                "destination": itinerary.get("destination", "Unknown"),
+                "itinerary": itinerary,
+                "created_at": datetime.utcnow(),
+                "expires_at": expires_at,
+                "view_count": 0,
+                "is_public": True
+            }
+            
+            result = await self.shared_trips.insert_one(shared_trip)
+            
+            if result.inserted_id:
+                print(f"✅ Created shared trip: {share_id}")
+                return share_id
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error creating shared trip {session_id}: {e}")
+            return None
+    
+    async def get_shared_trip(self, share_id: str) -> Optional[Dict[str, Any]]:
+        """Get shared trip by share ID"""
+        try:
+            # Check if not expired
+            shared_trip = await self.shared_trips.find_one({
+                "share_id": share_id,
+                "$or": [
+                    {"expires_at": None},
+                    {"expires_at": {"$gt": datetime.utcnow()}}
+                ]
+            })
+            
+            if shared_trip:
+                # Increment view count
+                await self.shared_trips.update_one(
+                    {"share_id": share_id},
+                    {"$inc": {"view_count": 1}}
+                )
+                
+                shared_trip.pop("_id", None)
+                return shared_trip
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error getting shared trip {share_id}: {e}")
+            return None
+    
+    async def delete_shared_trip(self, share_id: str) -> bool:
+        """Delete a shared trip"""
+        try:
+            result = await self.shared_trips.delete_one({"share_id": share_id})
+            return result.deleted_count > 0
+            
+        except Exception as e:
+            print(f"❌ Error deleting shared trip {share_id}: {e}")
+            return False
+    
+    async def cleanup_expired_shares(self) -> int:
+        """Clean up expired shared trips"""
+        try:
+            result = await self.shared_trips.delete_many({
+                "expires_at": {"$lt": datetime.utcnow()}
+            })
+            
+            deleted_count = result.deleted_count
+            if deleted_count > 0:
+                print(f"✅ Cleaned up {deleted_count} expired shared trips")
+            
+            return deleted_count
+            
+        except Exception as e:
+            print(f"❌ Error cleaning up expired shares: {e}")
+            return 0

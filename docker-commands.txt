@@ -1,0 +1,43 @@
+# View logs
+docker-compose logs backend
+docker-compose logs frontend
+docker-compose logs mongodb
+
+# View live logs (follow/tail)
+docker-compose logs -f backend
+docker-compose logs -f frontend
+docker-compose logs -f mongodb
+
+# View live logs for all containers
+docker-compose logs -f
+
+# View recent logs with live follow
+docker-compose logs --tail=50 -f backend
+docker-compose logs --tail=100 -f
+
+# Restart containers
+docker-compose restart
+
+# Stop containers
+docker-compose down
+
+# Start containers
+docker-compose --env-file .env.docker up -d
+
+# Rebuild containers (after code changes)
+docker-compose build --no-cache
+docker-compose --env-file .env.docker up -d
+
+# === ALL-IN-ONE COMMANDS ===
+
+# Complete rebuild and restart
+docker-compose down -v && docker-compose build --no-cache && docker-compose --env-file .env.docker up -d
+
+# Quick restart with logs
+docker-compose restart && docker-compose logs -f
+
+# Stop, rebuild, start with live logs
+docker-compose down && docker-compose build && docker-compose --env-file .env.docker up -d && docker-compose logs -f
+
+# Emergency reset (removes all data)
+docker-compose down -v && docker system prune -f && docker-compose --env-file .env.docker up -d --build
