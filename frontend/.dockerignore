@@ -1,0 +1,13 @@
+# Add Docker-related files to .dockerignore
+node_modules
+npm-debug.log
+.next
+.git
+.gitignore
+README.md
+Dockerfile*
+.dockerignore
+.env.local
+.env.production
+.env.docker
+.vercel

@@ -9,9 +9,9 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-tripplanner}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: tripplanner
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -25,9 +25,9 @@ services:
     ports:
       - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USERNAME:-admin}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD}@mongodb:27017/
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/
       ME_CONFIG_BASICAUTH: false
     depends_on:
       - mongodb
@@ -44,7 +44,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE:-tripplanner}?authSource=admin
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/tripplanner?authSource=admin
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - AMADEUS_API_KEY=${AMADEUS_API_KEY}
       - AMADEUS_API_SECRET=${AMADEUS_API_SECRET}
@@ -56,7 +56,6 @@ services:
       - mongodb
     networks:
       - ai-trip-planner
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   # Frontend
   frontend:
@@ -78,7 +77,6 @@ services:
       - backend
     networks:
       - ai-trip-planner
-    command: ["npm", "run", "dev"]
 
 volumes:
   mongodb_data:

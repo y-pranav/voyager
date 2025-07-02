@@ -27,6 +27,7 @@ debug_*.py
 .env.development.local
 .env.test.local
 .env.production.local
+.env.docker
 
 # Python
 __pycache__/
